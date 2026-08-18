@@ -6,12 +6,16 @@ import { ReportTable } from '@/components/ReportTable';
 import { ReportFormModal } from '@/components/ReportFormModal';
 import { ExportModal } from '@/components/ExportModal';
 import { ReportDetailModal } from '@/components/ReportDetailModal';
+import { AuthModal } from '@/components/AuthModal';
 import { Toast } from '@/components/Toast';
 import { reportsService } from '@/services/reportsService';
 import { DailyReport, ReportCategory } from '@/types/report';
+import { useAuth } from '@/context/AuthContext';
 import { Loader2 } from 'lucide-react';
 
 export default function DashboardPage() {
+  const { userProfile, loading: authLoading } = useAuth();
+
   const [reports, setReports] = useState<DailyReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
@@ -24,6 +28,10 @@ export default function DashboardPage() {
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [viewingReport, setViewingReport] = useState<DailyReport | null>(null);
 
+  // Auth Modal state
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authInitialTab, setAuthInitialTab] = useState<'login' | 'register'>('login');
+
   // Toast feedback state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -31,10 +39,17 @@ export default function DashboardPage() {
     setToastMessage(msg);
   };
 
-  const loadReports = async () => {
+  const handleOpenAuthModal = (tab: 'login' | 'register' = 'login') => {
+    setAuthInitialTab(tab);
+    setIsAuthOpen(true);
+  };
+
+  const loadReports = async (uid?: string, name?: string) => {
     try {
       setLoading(true);
-      const data = await reportsService.getAllReports();
+      const targetUid = uid !== undefined ? uid : userProfile?.uid;
+      const targetName = name !== undefined ? name : userProfile?.displayName;
+      const data = await reportsService.getAllReports(targetUid, targetName);
       setReports(data);
     } catch (err) {
       console.error(err);
@@ -44,31 +59,41 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    loadReports();
-  }, []);
+    if (!authLoading) {
+      loadReports(userProfile?.uid, userProfile?.displayName);
+      if (!userProfile) {
+        setAuthInitialTab('login');
+        setIsAuthOpen(true);
+      }
+    }
+  }, [userProfile, authLoading]);
 
   // Save or Edit report
   const handleSaveReport = async (reportData: DailyReport) => {
     if (editingReport && editingReport.id) {
-      await reportsService.updateReport(editingReport.id, reportData);
+      await reportsService.updateReport(editingReport.id, reportData, userProfile?.uid);
       showToast('Laporan berhasil diperbarui!');
     } else {
-      await reportsService.createReport(reportData);
+      await reportsService.createReport(reportData, userProfile?.uid);
       showToast('Laporan pekerjaan baru berhasil disimpan!');
     }
-    await loadReports();
+    await loadReports(userProfile?.uid, userProfile?.displayName);
     setEditingReport(null);
   };
 
   // Delete report
   const handleDeleteReport = async (id: string) => {
-    await reportsService.deleteReport(id);
+    await reportsService.deleteReport(id, userProfile?.uid);
     showToast('Laporan berhasil dihapus');
-    await loadReports();
+    await loadReports(userProfile?.uid, userProfile?.displayName);
   };
 
   // Open edit modal
   const handleOpenEdit = (report: DailyReport) => {
+    if (!userProfile) {
+      handleOpenAuthModal('login');
+      return;
+    }
     setEditingReport(report);
     setDefaultFormCategory(report.category);
     setIsFormOpen(true);
@@ -76,6 +101,10 @@ export default function DashboardPage() {
 
   // Open add modal with auto-selected category if filtered
   const handleOpenAddModal = () => {
+    if (!userProfile) {
+      handleOpenAuthModal('login');
+      return;
+    }
     setEditingReport(null);
     if (selectedCategory && selectedCategory !== 'Semua') {
       setDefaultFormCategory(selectedCategory as ReportCategory);
@@ -86,7 +115,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
       {/* Top Navbar & Header */}
-      <Header />
+      <Header onOpenAuthModal={handleOpenAuthModal} />
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 md:px-8 py-6">
@@ -126,6 +155,13 @@ export default function DashboardPage() {
       </div>
 
       {/* Modals */}
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        initialTab={authInitialTab}
+        onSuccess={(msg) => showToast(msg)}
+      />
+
       <ReportFormModal
         isOpen={isFormOpen}
         onClose={() => {
@@ -164,3 +200,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

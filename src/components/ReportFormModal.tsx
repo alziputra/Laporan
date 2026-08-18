@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save } from 'lucide-react';
 import { DailyReport, ReportCategory, MetodePenanganan } from '@/types/report';
+import { useAuth } from '@/context/AuthContext';
 
 interface ReportFormModalProps {
   isOpen: boolean;
@@ -19,7 +20,12 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
   initialData,
   defaultCategory = 'Hardware Kanwil'
 }) => {
+  const { userProfile } = useAuth();
   const getTodayString = () => new Date().toISOString().split('T')[0];
+
+  const defaultPic = userProfile
+    ? (userProfile.unitKerja || `${userProfile.kanwil} - ${userProfile.displayName}`)
+    : 'Kanwil VIII - Alzi Rahmana Putra';
 
   const [formData, setFormData] = useState<DailyReport>({
     category: defaultCategory,
@@ -28,7 +34,7 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
     deskripsiPermohonan: '',
     metodePenanganan: 'Visit',
     solusiIssue: '',
-    picSupport: 'Kanwil VIII - Alzi Rahmana Putra',
+    picSupport: defaultPic,
     tanggalPengerjaan: getTodayString(),
     tanggalSelesai: getTodayString(),
     waktuMulai: '08:00',
@@ -50,7 +56,7 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
         deskripsiPermohonan: '',
         metodePenanganan: 'Visit',
         solusiIssue: '',
-        picSupport: 'Kanwil VIII - Alzi Rahmana Putra',
+        picSupport: defaultPic,
         tanggalPengerjaan: getTodayString(),
         tanggalSelesai: getTodayString(),
         waktuMulai: '08:30',
@@ -59,7 +65,7 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
       });
     }
     setErrors({});
-  }, [initialData, defaultCategory, isOpen]);
+  }, [initialData, defaultCategory, isOpen, userProfile]);
 
   if (!isOpen) return null;
 

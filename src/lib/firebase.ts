@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import { getAuth, Auth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -19,14 +20,18 @@ export const isFirebaseConfigured = Boolean(
 );
 
 let dbInstance: any = null;
+let authInstance: Auth | null = null;
 
-if (isFirebaseConfigured) {
+if (typeof window !== 'undefined' && isFirebaseConfigured) {
   try {
     const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
     dbInstance = getFirestore(app);
+    authInstance = getAuth(app);
   } catch (error) {
     console.warn("Failed to initialize Firebase, falling back to local mode:", error);
   }
 }
 
 export const db = dbInstance;
+export const auth = authInstance;
+

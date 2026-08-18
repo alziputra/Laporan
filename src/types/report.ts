@@ -17,6 +17,7 @@ export type ReportStatus = 'Selesai' | 'Dalam Proses' | 'Pending';
 
 export interface DailyReport {
   id?: string;
+  userId?: string;
   category: ReportCategory;
   nama: string;
   unitKerja: string;
