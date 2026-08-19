@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { X, User, Building, Edit, Trash2 } from 'lucide-react';
 import { DailyReport } from '@/types/report';
+import { calculateSLA, getDayName, formatDateFormatted } from '@/utils/exportUtils';
 import { ConfirmModal } from '@/components/ConfirmModal';
 
 interface ReportDetailModalProps {
@@ -12,19 +13,6 @@ interface ReportDetailModalProps {
   onEdit: (report: DailyReport) => void;
   onDelete: (id: string) => void;
 }
-
-// Helper functions for SLA
-const calculateSLA = (start: string, end: string) => {
-  const [sH, sM] = start.split(':').map(Number);
-  const [eH, eM] = end.split(':').map(Number);
-  return (eH * 60 + eM) - (sH * 60 + sM);
-};
-
-const formatDuration = (minutes: number) => {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return `${h}j ${m}m`;
-};
 
 export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   isOpen,
@@ -37,8 +25,9 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
   if (!isOpen || !report) return null;
 
-  const slaMinutes = calculateSLA(report.waktuMulai, report.waktuSelesai);
-  const slaText = formatDuration(slaMinutes);
+  const slaText = calculateSLA(report.waktuMulai, report.waktuSelesai);
+  const dayName = getDayName(report.tanggalPengerjaan);
+  const formattedDate = formatDateFormatted(report.tanggalPengerjaan);
 
   return (
     <>
@@ -67,7 +56,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100 text-xs">
               <div>
                 <span className="text-slate-400 font-medium block mb-0.5">Hari / Tanggal</span>
-                <span className="font-bold text-slate-800">{report.hari}, {report.tanggal}</span>
+                <span className="font-bold text-slate-800">{dayName}, {formattedDate}</span>
               </div>
               <div>
                 <span className="text-slate-400 font-medium block mb-0.5">PIC Support (Kanwil)</span>
@@ -79,7 +68,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
               </div>
               <div>
                 <span className="text-slate-400 font-medium block mb-0.5">Nama User</span>
-                <span className="font-bold text-slate-800">{report.namaUser}</span>
+                <span className="font-bold text-slate-800">{report.nama}</span>
               </div>
             </div>
 
@@ -108,7 +97,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 text-xs border-t border-slate-100">
               <div>
                 <span className="text-slate-400 block">Metode Support</span>
-                <span className="font-semibold text-slate-700">{report.metode}</span>
+                <span className="font-semibold text-slate-700">{report.metodePenanganan}</span>
               </div>
               <div>
                 <span className="text-slate-400 block">Status Laporan</span>
