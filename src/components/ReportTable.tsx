@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Search, 
   Filter, 
@@ -13,10 +13,15 @@ import {
   AlertCircle,
   FileSpreadsheet,
   PlusCircle,
-  ArrowUpDown
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from 'lucide-react';
 import { DailyReport, ReportCategory } from '@/types/report';
 import { calculateSLA, getDayName, formatDateFormatted } from '@/utils/exportUtils';
+import { ConfirmModal } from '@/components/ConfirmModal';
 
 interface ReportTableProps {
   reports: DailyReport[];
@@ -42,6 +47,16 @@ export const ReportTable: React.FC<ReportTableProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('Semua');
   const [dateFilter, setDateFilter] = useState('');
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Reset to page 1 whenever search or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedCategory, statusFilter, dateFilter, itemsPerPage]);
 
   // Filtered dataset
   const filteredReports = reports.filter((item) => {
@@ -59,15 +74,59 @@ export const ReportTable: React.FC<ReportTableProps> = ({
     return matchesSearch && matchesCategory && matchesStatus && matchesDate;
   });
 
+  // Pagination Calculations
+  const totalItems = filteredReports.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+  const paginatedReports = filteredReports.slice(startIndex, endIndex);
+
+  // Page Numbers Array Helper
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxVisiblePages = 5;
+
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      let startPage = Math.max(1, currentPage - 2);
+      let endPage = Math.min(totalPages, currentPage + 2);
+
+      if (currentPage <= 3) {
+        startPage = 1;
+        endPage = 5;
+      } else if (currentPage >= totalPages - 2) {
+        startPage = totalPages - 4;
+        endPage = totalPages;
+      }
+
+      if (startPage > 1) {
+        pages.push(1);
+        if (startPage > 2) pages.push('...');
+      }
+
+      for (let i = startPage; i <= endPage; i++) {
+        pages.push(i);
+      }
+
+      if (endPage < totalPages) {
+        if (endPage < totalPages - 1) pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+
+    return pages;
+  };
+
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
       {/* Table Toolbar Header */}
       <div className="p-4 md:p-6 border-b border-slate-200 bg-slate-50/50 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
         <div>
           <h3 className="text-base md:text-lg font-bold text-slate-800 flex items-center gap-2">
             <span>Daftar Laporan Pekerjaan</span>
-            <span className="text-xs bg-pegadaian-100 text-pegadaian-800 font-extrabold px-2.5 py-0.5 rounded-full">
-              {filteredReports.length} Data
+            <span className="text-xs bg-pegadaian-100 text-pegadaian-800 font-extrabold px-2.5 py-0.5 rounded-full shadow-sm">
+              {totalItems.toLocaleString('id-ID')} Data
             </span>
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -85,7 +144,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({
               placeholder="Cari user, unit kerja, solusi..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 bg-white rounded-lg border border-slate-300 text-xs text-slate-800 focus:ring-2 focus:ring-pegadaian-500 focus:border-pegadaian-500"
+              className="w-full pl-9 pr-3 py-1.5 bg-white rounded-lg border border-slate-300 text-xs text-slate-800 focus:ring-2 focus:ring-pegadaian-500 focus:border-pegadaian-500 transition-all"
             />
           </div>
 
@@ -93,7 +152,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({
           <select
             value={selectedCategory}
             onChange={(e) => onSelectCategory(e.target.value)}
-            className="px-3 py-1.5 bg-white rounded-lg border border-slate-300 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-pegadaian-500"
+            className="px-3 py-1.5 bg-white rounded-lg border border-slate-300 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-pegadaian-500 transition-all"
           >
             <option value="Semua">Semua Kategori</option>
             <option value="Hardware Kanwil">Hardware Kanwil</option>
@@ -111,7 +170,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({
               type="date"
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
-              className="px-2.5 py-1.5 bg-white rounded-lg border border-slate-300 text-xs text-slate-800 focus:ring-2 focus:ring-pegadaian-500"
+              className="px-2.5 py-1.5 bg-white rounded-lg border border-slate-300 text-xs text-slate-800 focus:ring-2 focus:ring-pegadaian-500 transition-all"
               title="Filter Berdasarkan Tanggal Specific"
             />
           </div>
@@ -124,7 +183,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({
                 setDateFilter('');
                 onSelectCategory('Semua');
               }}
-              className="text-xs text-slate-500 hover:text-red-600 underline px-1"
+              className="text-xs font-bold text-slate-500 hover:text-red-600 underline px-1 transition-colors"
             >
               Reset Filter
             </button>
@@ -150,7 +209,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({
         </div>
       </div>
 
-      {/* Table View Container with Padding & Breathing Room */}
+      {/* Table View Container */}
       <div className="p-3 sm:p-5">
         <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
           <table className="w-full text-left text-xs md:text-sm align-middle">
@@ -173,7 +232,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({
             </thead>
 
             <tbody className="divide-y divide-slate-200 bg-white">
-              {filteredReports.length === 0 ? (
+              {paginatedReports.length === 0 ? (
                 <tr>
                   <td colSpan={13} className="py-14 text-center text-slate-500 align-middle">
                     <div className="flex flex-col items-center justify-center space-y-2">
@@ -184,10 +243,11 @@ export const ReportTable: React.FC<ReportTableProps> = ({
                   </td>
                 </tr>
               ) : (
-                filteredReports.map((item, index) => {
+                paginatedReports.map((item, index) => {
                   const slaStr = calculateSLA(item.waktuMulai, item.waktuSelesai);
                   const dayName = getDayName(item.tanggalPengerjaan);
                   const formattedDate = formatDateFormatted(item.tanggalPengerjaan);
+                  const rowNumber = startIndex + index + 1;
 
                   return (
                     <tr 
@@ -196,7 +256,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({
                       onClick={() => onViewDetail(item)}
                     >
                       <td className="py-3.5 px-4 text-center font-medium text-slate-500 align-middle border-r border-slate-200">
-                        {index + 1}
+                        {rowNumber}
                       </td>
 
                       {/* Hari */}
@@ -274,11 +334,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({
                             <Edit3 className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => {
-                              if (confirm('Hapus laporan ini?')) {
-                                onDelete(item.id!);
-                              }
-                            }}
+                            onClick={() => setDeleteConfirmId(item.id!)}
                             className="p-1.5 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
                             title="Hapus"
                           >
@@ -294,6 +350,122 @@ export const ReportTable: React.FC<ReportTableProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Pagination Footer Controls */}
+      {totalItems > 0 && (
+        <div className="px-3 sm:px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex flex-col md:flex-row items-center justify-between gap-3 text-xs font-semibold text-slate-600">
+          
+          {/* Top/Left: Rows Per Page & Summary */}
+          <div className="flex flex-wrap items-center justify-center gap-2 text-center">
+            <div className="flex items-center gap-1.5">
+              <span>Tampilkan</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                className="px-2 py-1 bg-white rounded-lg border border-slate-300 font-bold text-slate-800 focus:ring-2 focus:ring-pegadaian-500 cursor-pointer text-xs"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+              <span>baris</span>
+            </div>
+            <span className="text-slate-300 hidden sm:inline">•</span>
+            <div className="text-slate-500">
+              <strong className="text-slate-800">{totalItems > 0 ? startIndex + 1 : 0}</strong> - <strong className="text-slate-800">{endIndex}</strong> dari <strong className="text-pegadaian-800">{totalItems.toLocaleString('id-ID')}</strong> Laporan
+            </div>
+          </div>
+
+          {/* Right: Pagination Navigation Buttons */}
+          <div className="flex items-center justify-center gap-1 flex-wrap">
+            {/* First Page */}
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              title="Halaman Pertama"
+            >
+              <ChevronsLeft className="w-4 h-4" />
+            </button>
+
+            {/* Previous Page */}
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              title="Halaman Sebelumnya"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            {/* Page Number Buttons */}
+            <div className="flex items-center gap-1">
+              {getPageNumbers().map((page, idx) => {
+                if (page === '...') {
+                  return (
+                    <span key={`dots-${idx}`} className="px-1 text-slate-400 font-bold text-xs">
+                      ...
+                    </span>
+                  );
+                }
+                const pageNum = page as number;
+                const isActive = pageNum === currentPage;
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`min-w-[28px] sm:min-w-[32px] h-7 sm:h-8 px-2 rounded-lg font-extrabold text-xs transition-all ${
+                      isActive
+                        ? 'bg-pegadaian-700 text-white shadow-md shadow-pegadaian-700/20'
+                        : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Next Page */}
+            <button
+              onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              title="Halaman Selanjutnya"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+
+            {/* Last Page */}
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+              className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              title="Halaman Terakhir"
+            >
+              <ChevronsRight className="w-4 h-4" />
+            </button>
+          </div>
+
+        </div>
+      )}
+
+      {/* Confirm Delete Modal */}
+      <ConfirmModal
+        isOpen={!!deleteConfirmId}
+        onClose={() => setDeleteConfirmId(null)}
+        onConfirm={() => {
+          if (deleteConfirmId) {
+            onDelete(deleteConfirmId);
+            setDeleteConfirmId(null);
+          }
+        }}
+        title="Hapus Laporan Pekerjaan"
+        message="Apakah Anda yakin ingin menghapus laporan pekerjaan ini? Data yang dihapus tidak dapat dikembalikan."
+        confirmText="Ya, Hapus"
+        cancelText="Batal"
+      />
     </div>
   );
 };

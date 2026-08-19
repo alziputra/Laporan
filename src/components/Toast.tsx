@@ -28,7 +28,7 @@ export const Toast: React.FC<ToastProps> = ({
   if (!message) return null;
 
   return (
-    <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-6 duration-300 w-auto max-w-md px-4 pointer-events-auto">
+    <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 animate-in fade-in zoom-in duration-200 w-auto max-w-md px-4 pointer-events-auto">
       <div className={`flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl border text-xs sm:text-sm font-bold tracking-wide backdrop-blur-md transition-all ${
         type === 'success'
           ? 'bg-pegadaian-700/95 text-white border-pegadaian-500 ring-4 ring-pegadaian-600/20'

@@ -118,17 +118,17 @@ export default function DashboardPage() {
       <Header onOpenAuthModal={handleOpenAuthModal} />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 md:px-8 py-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 md:px-8 py-6 pb-20 md:pb-6">
         {loading ? (
           <div className="py-24 flex flex-col items-center justify-center space-y-3">
-            <Loader2 className="w-10 h-10 text-pegadaian-600 animate-spin" />
-            <p className="text-sm font-semibold text-slate-600">Memuat data laporan Desktop Support...</p>
+            <Loader2 className="w-8 h-8 animate-spin text-pegadaian-600" />
+            <p className="text-xs font-semibold text-slate-500">Memuat data laporan...</p>
           </div>
         ) : (
           <ReportTable
             reports={reports}
             selectedCategory={selectedCategory}
-            onSelectCategory={(cat) => setSelectedCategory(cat)}
+            onSelectCategory={setSelectedCategory}
             onViewDetail={(report) => setViewingReport(report)}
             onEdit={handleOpenEdit}
             onDelete={handleDeleteReport}
@@ -139,15 +139,15 @@ export default function DashboardPage() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 py-4 mb-16 md:mb-0 text-center text-xs font-semibold text-slate-600">
+      <footer className="bg-white border-t border-slate-200 py-4 text-center text-xs font-semibold text-slate-600 pb-20 md:pb-4">
         <p>© 2026 Alzi Rahmana Putra</p>
       </footer>
 
       {/* Floating Action Button (FAB) for Mobile Screens (< md) */}
-      <div className="fixed bottom-5 right-5 z-40 block md:hidden">
+      <div className="fixed bottom-4 right-4 z-40 block md:hidden">
         <button
           onClick={handleOpenAddModal}
-          className="flex items-center gap-2 bg-pegadaian-600 hover:bg-pegadaian-700 text-white font-bold px-4 py-3 rounded-full shadow-2xl transition-all active:scale-95 border-2 border-white ring-4 ring-pegadaian-600/20"
+          className="flex items-center gap-2 bg-gradient-to-r from-pegadaian-600 to-pegadaian-700 hover:from-pegadaian-700 hover:to-pegadaian-800 text-white font-extrabold px-4 py-3 rounded-full shadow-2xl transition-all active:scale-95 border-2 border-white ring-4 ring-pegadaian-600/20"
         >
           <span className="text-xl leading-none">+</span>
           <span className="text-xs font-extrabold tracking-wide">Buat Laporan</span>
@@ -180,6 +180,7 @@ export default function DashboardPage() {
       />
 
       <ReportDetailModal
+        isOpen={!!viewingReport}
         report={viewingReport}
         onClose={() => setViewingReport(null)}
         onEdit={(report) => {

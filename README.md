@@ -5,12 +5,12 @@ Aplikasi Web Pelaporan Pekerjaan Harian & Troubleshoot Kanwil untuk **Desktop Su
 Developed by: **Alzi Rahmana Putra** © 2026
 
 ![Desktop Support Pegadaian Screenshot](./public/Screenshot.png)
+Live Demo: https://laporan-pekerjaan-one.vercel.app/
 
 ---
 
 ## 🌟 Fitur Utama
 
-- **Header Glassmorphism & Branding**: Navbar Pegadaian dengan logo `logo-pegadaian2.png`, status live date, dan indikator koneksi database.
 - **Toolbar Ringkas**: Filter pencarian live, dropdown kategori, filter tanggal, serta tombol ikon **`+ Buat Laporan`** dan **`Export Excel`**.
 - **Form Input & Otomatisasi SLA**:
   - Input field: `Nama User`, `Unit Kerja`, `Deskripsi Permohonan`, `Metode Penanganan` (`Guide`, `Visit`, `Remote`), `Solusi Issue`, `PIC Support`, `Tanggal Pelaporan`, `Waktu Mulai`, `Waktu Selesai`.
@@ -24,12 +24,17 @@ Developed by: **Alzi Rahmana Putra** © 2026
 
 ## 🚀 Cara Menjalankan Aplikasi
 
-### 1. Install Dependencies
+### 1. Clone Repositori
+```bash
+git clone https://github.com/alziputra/Laporan.git
+```
+
+### 2. Install Dependencies
 ```bash
 npm install
 ```
 
-### 2. Jalankan Server Development
+### 3. Jalankan Server Development
 ```bash
 npm run dev
 ```
@@ -37,7 +42,7 @@ Akses di browser: [http://localhost:3000](http://localhost:3000)
 
 ---
 
-## ⚙️ Konfigurasi Firebase Firestore (`.env.local`)
+## ⚙️ Konfigurasi Firebase Firestore (`.env`)
 
 ```env
 NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSy...

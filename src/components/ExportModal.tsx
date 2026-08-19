@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  X, 
-  FileSpreadsheet, 
-  Calendar, 
+import {
+  X,
+  FileSpreadsheet,
+  Calendar,
   CheckCircle,
   AlertCircle
 } from 'lucide-react';
@@ -24,7 +24,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   reports
 }) => {
   const today = new Date().toISOString().split('T')[0];
-  
+
   // Default to start of current month
   const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
     .toISOString().split('T')[0];
@@ -71,7 +71,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-      <div 
+      <div
         className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden border border-slate-100 animate-in fade-in zoom-in duration-200"
         onClick={(e) => e.stopPropagation()}
       >
@@ -184,11 +184,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           </div>
 
           {/* Data Counter Preview */}
-          <div className={`p-3 rounded-lg border flex items-center justify-between text-xs font-medium ${
-            filteredData.length > 0
+          <div className={`p-3 rounded-lg border flex items-center justify-between text-xs font-medium ${filteredData.length > 0
               ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
               : 'bg-amber-50 text-amber-800 border-amber-200'
-          }`}>
+            }`}>
             <div className="flex items-center gap-2">
               {filteredData.length > 0 ? (
                 <CheckCircle className="w-4 h-4 text-emerald-600" />
@@ -196,13 +195,13 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 <AlertCircle className="w-4 h-4 text-amber-600" />
               )}
               <span>
-                {filteredData.length > 0 
-                  ? `Siap meng-export ${filteredData.length} laporan pekerjaan ke Excel` 
+                {filteredData.length > 0
+                  ? `Siap meng-export ${filteredData.length} laporan pekerjaan ke Excel`
                   : 'Tidak ada data laporan pada kriteria filter ini'}
               </span>
             </div>
             <span className="font-bold bg-white px-2 py-0.5 rounded shadow-sm">
-              {filteredData.length} Tiket
+              {filteredData.length} Laporan
             </span>
           </div>
 
