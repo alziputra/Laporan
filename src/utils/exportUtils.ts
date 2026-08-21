@@ -69,6 +69,18 @@ export const exportToExcel = (reports: DailyReport[], startDate: string, endDate
     return;
   }
 
+  // Sort reports ascending (A-Z / 1-10) by tanggalPengerjaan (oldest to newest date)
+  const sortedReports = [...reports].sort((a, b) => {
+    const dateA = a.tanggalPengerjaan || '';
+    const dateB = b.tanggalPengerjaan || '';
+    if (dateA !== dateB) {
+      return dateA.localeCompare(dateB); // Ascending date order (A-Z / 1-10)
+    }
+    const timeA = a.waktuMulai || '';
+    const timeB = b.waktuMulai || '';
+    return timeA.localeCompare(timeB);
+  });
+
   const workbook = XLSX.utils.book_new();
   const periodLabel = formatDateRangeLabel(startDate, endDate);
 
@@ -221,14 +233,14 @@ export const exportToExcel = (reports: DailyReport[], startDate: string, endDate
   };
 
   // 1. Add sheet for All Data (Semua Laporan)
-  const allSheetData = buildSheetData(reports, 'All Services');
+  const allSheetData = buildSheetData(sortedReports, 'All Services');
   const allWorksheet = XLSX.utils.aoa_to_sheet(allSheetData);
   styleWorksheet(allWorksheet, allSheetData.length);
   XLSX.utils.book_append_sheet(workbook, allWorksheet, 'Semua Laporan');
 
   // 2. Add individual category sheets matching bottom tabs
   categoryTabs.forEach((cat) => {
-    const catReports = reports.filter(r => r.category === cat.key);
+    const catReports = sortedReports.filter(r => r.category === cat.key);
     const sheetData = buildSheetData(catReports, cat.tabName);
     const ws = XLSX.utils.aoa_to_sheet(sheetData);
     styleWorksheet(ws, sheetData.length);
