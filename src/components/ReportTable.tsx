@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, 
   Eye, 
@@ -66,6 +66,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const dateInputRef = useRef<HTMLInputElement>(null);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -368,37 +369,48 @@ export const ReportTable: React.FC<ReportTableProps> = ({
 
             {/* Custom Interactive Date Filter Button */}
             <div className="relative flex items-center">
-              <div className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all shadow-2xs ${
-                dateFilter 
-                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800 ring-1 ring-emerald-400/30' 
-                  : 'bg-slate-50 hover:bg-slate-100/80 border-slate-200 text-slate-700'
-              }`}>
+              <button
+                type="button"
+                onClick={() => {
+                  try {
+                    dateInputRef.current?.showPicker();
+                  } catch {
+                    dateInputRef.current?.focus();
+                  }
+                }}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-95 ${
+                  dateFilter 
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-800 ring-1 ring-emerald-400/30' 
+                    : 'bg-slate-50 hover:bg-slate-100/90 border-slate-200 text-slate-700'
+                }`}
+                title="Klik untuk memilih tanggal"
+              >
                 <Calendar className={`w-3.5 h-3.5 shrink-0 ${dateFilter ? 'text-emerald-700' : 'text-slate-400'}`} />
                 <span className="whitespace-nowrap">
                   {dateFilter ? formatDateFormatted(dateFilter) : 'Filter Tanggal'}
                 </span>
                 {dateFilter && (
-                  <button
-                    type="button"
+                  <span
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
                       setDateFilter('');
                     }}
-                    className="ml-1 p-0.5 hover:bg-emerald-200/60 rounded-full text-emerald-800 z-10"
+                    className="ml-1 p-0.5 hover:bg-emerald-200/60 rounded-full text-emerald-800 transition-colors"
                     title="Hapus Filter Tanggal"
                   >
                     <X className="w-3 h-3" />
-                  </button>
+                  </span>
                 )}
-              </div>
-              {/* Native Date Input Overlay - invisible but triggers native date picker on touch */}
+              </button>
+              {/* Native Date Input */}
               <input
+                ref={dateInputRef}
                 type="date"
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
-                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-0"
-                title="Pilih Tanggal"
+                className="absolute inset-0 opacity-0 pointer-events-none w-0 h-0"
+                tabIndex={-1}
               />
             </div>
 

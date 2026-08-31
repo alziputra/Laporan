@@ -111,7 +111,6 @@ export const exportToExcel = (reports: DailyReport[], startDate: string, endDate
       'Unit kerja',
       'Nama user',
       'Deskripsi permohonan',
-      'Metode Penanganan',
       'Solusi Issue',
       'Waktu Pengerjaan',
       'Waktu Selesai',
@@ -126,7 +125,6 @@ export const exportToExcel = (reports: DailyReport[], startDate: string, endDate
       item.unitKerja,
       item.nama,
       item.deskripsiPermohonan,
-      item.metodePenanganan,
       item.solusiIssue,
       item.waktuMulai,
       item.waktuSelesai,
@@ -151,11 +149,10 @@ export const exportToExcel = (reports: DailyReport[], startDate: string, endDate
       { wch: 26 }, // E: Unit kerja
       { wch: 24 }, // F: Nama user
       { wch: 45 }, // G: Deskripsi permohonan
-      { wch: 18 }, // H: Metode Penanganan
-      { wch: 45 }, // I: Solusi Issue
-      { wch: 16 }, // J: Waktu Pengerjaan
-      { wch: 16 }, // K: Waktu Selesai
-      { wch: 14 }, // L: SLA
+      { wch: 45 }, // H: Solusi Issue
+      { wch: 16 }, // I: Waktu Pengerjaan
+      { wch: 16 }, // J: Waktu Selesai
+      { wch: 14 }, // K: SLA
     ];
 
     ws['!merges'] = [
