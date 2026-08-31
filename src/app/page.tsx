@@ -7,6 +7,7 @@ import { ReportFormModal } from '@/components/ReportFormModal';
 import { ExportModal } from '@/components/ExportModal';
 import { ReportDetailModal } from '@/components/ReportDetailModal';
 import { AuthModal } from '@/components/AuthModal';
+import { AdminUserManagement } from '@/components/AdminUserManagement';
 import { Toast } from '@/components/Toast';
 import { reportsService } from '@/services/reportsService';
 import { DailyReport, ReportCategory } from '@/types/report';
@@ -14,8 +15,9 @@ import { useAuth } from '@/context/AuthContext';
 import { Loader2 } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { userProfile, loading: authLoading } = useAuth();
+  const { userProfile, loading: authLoading, isAdmin } = useAuth();
 
+  const [currentView, setCurrentView] = useState<'reports' | 'admin'>('reports');
   const [reports, setReports] = useState<DailyReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
@@ -64,6 +66,7 @@ export default function DashboardPage() {
       if (!userProfile) {
         setAuthInitialTab('login');
         setIsAuthOpen(true);
+        setCurrentView('reports');
       }
     }
   }, [userProfile, authLoading]);
@@ -112,14 +115,31 @@ export default function DashboardPage() {
     setIsFormOpen(true);
   };
 
+  const handleToggleAdminPanel = () => {
+    if (!userProfile) {
+      handleOpenAuthModal('login');
+      return;
+    }
+    setCurrentView((prev) => (prev === 'admin' ? 'reports' : 'admin'));
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
       {/* Top Navbar & Header */}
-      <Header onOpenAuthModal={handleOpenAuthModal} />
+      <Header
+        onOpenAuthModal={handleOpenAuthModal}
+        onOpenAdminPanel={handleToggleAdminPanel}
+        activeView={currentView}
+      />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 md:px-8 py-6 pb-20 md:pb-6">
-        {loading ? (
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 md:px-8 py-3.5 sm:py-6 pb-24 md:pb-6">
+        {currentView === 'admin' ? (
+          <AdminUserManagement
+            onBackToDashboard={() => setCurrentView('reports')}
+            onShowToast={showToast}
+          />
+        ) : loading ? (
           <div className="py-24 flex flex-col items-center justify-center space-y-3">
             <Loader2 className="w-8 h-8 animate-spin text-pegadaian-600" />
             <p className="text-xs font-semibold text-slate-500">Memuat data laporan...</p>
@@ -143,16 +163,18 @@ export default function DashboardPage() {
         <p>© 2026 Alzi Rahmana Putra</p>
       </footer>
 
-      {/* Floating Action Button (FAB) for Mobile Screens (< md) */}
-      <div className="fixed bottom-4 right-4 z-40 block md:hidden">
-        <button
-          onClick={handleOpenAddModal}
-          className="flex items-center gap-2 bg-gradient-to-r from-pegadaian-600 to-pegadaian-700 hover:from-pegadaian-700 hover:to-pegadaian-800 text-white font-extrabold px-4 py-3 rounded-full shadow-2xl transition-all active:scale-95 border-2 border-white ring-4 ring-pegadaian-600/20"
-        >
-          <span className="text-xl leading-none">+</span>
-          <span className="text-xs font-extrabold tracking-wide">Buat Laporan</span>
-        </button>
-      </div>
+      {/* Floating Action Button (FAB) for Mobile Screens (< md) - only shown in reports view */}
+      {currentView === 'reports' && (
+        <div className="fixed bottom-4 right-4 z-40 block md:hidden">
+          <button
+            onClick={handleOpenAddModal}
+            className="flex items-center gap-2 bg-gradient-to-r from-pegadaian-600 to-pegadaian-700 hover:from-pegadaian-700 hover:to-pegadaian-800 text-white font-extrabold px-4 py-3 rounded-full shadow-2xl transition-all active:scale-95 border-2 border-white ring-4 ring-pegadaian-600/20"
+          >
+            <span className="text-xl leading-none">+</span>
+            <span className="text-xs font-extrabold tracking-wide">Buat Laporan</span>
+          </button>
+        </div>
+      )}
 
       {/* Modals */}
       <AuthModal
@@ -201,4 +223,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
 

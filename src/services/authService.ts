@@ -1,5 +1,5 @@
 import { auth, db, isFirebaseConfigured } from '@/lib/firebase';
-import { UserProfile, RegisterPayload, LoginPayload, DirectResetPayload } from '@/types/user';
+import { UserProfile, RegisterPayload, LoginPayload, DirectResetPayload, AdminUserSavePayload } from '@/types/user';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -7,7 +7,7 @@ import {
   updateProfile,
   sendPasswordResetEmail
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, getDocs } from 'firebase/firestore';
 
 const USER_REPORTS_COLLECTION = 'user-reports';
 const LOCAL_USERS_KEY = 'pegadaian_user_reports_v1';
@@ -54,10 +54,11 @@ const setLocalCurrentUser = (user: UserProfile | null) => {
 
 export const authService = {
   // Register User (Nama Lengkap, Email Aktif, Kantor Wilayah, Password)
-  async register({ displayName, email, kanwil, password }: RegisterPayload): Promise<UserProfile> {
+  async register({ displayName, email, kanwil, password, nik, role }: RegisterPayload): Promise<UserProfile> {
     const timestamp = Date.now();
     const cleanEmail = email.trim().toLowerCase();
     const unitKerja = `${kanwil} - ${displayName}`;
+    const userRole = role || 'Desktop Support';
 
     if (isFirebaseConfigured && auth && db) {
       try {
@@ -72,7 +73,8 @@ export const authService = {
           displayName,
           kanwil,
           unitKerja,
-          role: 'Desktop Support',
+          nik: nik || '',
+          role: userRole,
           createdAt: timestamp,
           updatedAt: timestamp,
         };
@@ -102,7 +104,8 @@ export const authService = {
       displayName,
       kanwil,
       unitKerja,
-      role: 'Desktop Support',
+      nik: nik || '',
+      role: userRole,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -239,6 +242,147 @@ export const authService = {
     }
     const users = getLocalUsers();
     return users.find((u) => u.uid === uid) || null;
+  },
+
+  // ADMIN: Get all registered users
+  async getAllUsers(): Promise<UserProfile[]> {
+    if (isFirebaseConfigured && db) {
+      try {
+        const usersCollectionRef = collection(db, USER_REPORTS_COLLECTION);
+        const snapshot = await getDocs(usersCollectionRef);
+        const users: UserProfile[] = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data() as UserProfile;
+          users.push({
+            ...data,
+            uid: docSnap.id
+          });
+        });
+
+        if (users.length > 0) {
+          // Sort by createdAt descending
+          users.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+          return users;
+        }
+      } catch (err) {
+        console.error('Error fetching all users from Firestore:', err);
+      }
+    }
+
+    // Fallback to local storage
+    const localUsers = getLocalUsers();
+    localUsers.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+    return localUsers;
+  },
+
+  // ADMIN: Create or Update User
+  async adminSaveUser(payload: AdminUserSavePayload): Promise<UserProfile> {
+    const timestamp = Date.now();
+    const cleanEmail = payload.email.trim().toLowerCase();
+    const unitKerja = payload.unitKerja || `${payload.kanwil} - ${payload.displayName}`;
+
+    // If Editing existing user
+    if (payload.uid) {
+      const updatedProfile: Partial<UserProfile> = {
+        displayName: payload.displayName,
+        email: cleanEmail,
+        kanwil: payload.kanwil,
+        unitKerja,
+        nik: payload.nik || '',
+        role: payload.role,
+        updatedAt: timestamp
+      };
+
+      if (isFirebaseConfigured && db) {
+        try {
+          const docRef = doc(db, USER_REPORTS_COLLECTION, payload.uid);
+          await updateDoc(docRef, updatedProfile);
+        } catch (err) {
+          console.error('Error updating user in Firestore:', err);
+        }
+      }
+
+      // Update LocalStorage
+      const localUsers = getLocalUsers();
+      const updatedList = localUsers.map((u) => 
+        u.uid === payload.uid ? { ...u, ...updatedProfile } as UserProfile : u
+      );
+      saveLocalUsers(updatedList);
+
+      const current = getLocalCurrentUser();
+      if (current && current.uid === payload.uid) {
+        setLocalCurrentUser({ ...current, ...updatedProfile } as UserProfile);
+      }
+
+      return { uid: payload.uid, ...updatedProfile } as UserProfile;
+    }
+
+    // If Creating new user via Admin
+    const newUid = 'user-' + Date.now();
+    const newUser: UserProfile = {
+      uid: newUid,
+      displayName: payload.displayName,
+      email: cleanEmail,
+      kanwil: payload.kanwil,
+      unitKerja,
+      nik: payload.nik || '',
+      role: payload.role || 'Desktop Support',
+      createdAt: timestamp,
+      updatedAt: timestamp
+    };
+
+    if (isFirebaseConfigured && db) {
+      try {
+        const docRef = doc(db, USER_REPORTS_COLLECTION, newUid);
+        await setDoc(docRef, newUser);
+      } catch (err) {
+        console.error('Error adding user to Firestore:', err);
+      }
+    }
+
+    const localUsers = getLocalUsers();
+    saveLocalUsers([newUser, ...localUsers]);
+    return newUser;
+  },
+
+  // ADMIN: Change role quickly (e.g. Admin / Desktop Support)
+  async adminUpdateRole(uid: string, newRole: string): Promise<void> {
+    const timestamp = Date.now();
+    if (isFirebaseConfigured && db) {
+      try {
+        const docRef = doc(db, USER_REPORTS_COLLECTION, uid);
+        await updateDoc(docRef, { role: newRole, updatedAt: timestamp });
+      } catch (err) {
+        console.error('Error updating role in Firestore:', err);
+      }
+    }
+
+    const localUsers = getLocalUsers();
+    const updatedList = localUsers.map((u) => 
+      u.uid === uid ? { ...u, role: newRole, updatedAt: timestamp } : u
+    );
+    saveLocalUsers(updatedList);
+
+    const current = getLocalCurrentUser();
+    if (current && current.uid === uid) {
+      setLocalCurrentUser({ ...current, role: newRole, updatedAt: timestamp });
+    }
+  },
+
+  // ADMIN: Delete User
+  async adminDeleteUser(uid: string): Promise<void> {
+    if (isFirebaseConfigured && db) {
+      try {
+        const docRef = doc(db, USER_REPORTS_COLLECTION, uid);
+        await deleteDoc(docRef);
+      } catch (err) {
+        console.error('Error deleting user from Firestore:', err);
+      }
+    }
+
+    const localUsers = getLocalUsers();
+    const updatedList = localUsers.filter((u) => u.uid !== uid);
+    saveLocalUsers(updatedList);
   },
 
   getCurrentSession(): UserProfile | null {

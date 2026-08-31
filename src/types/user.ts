@@ -15,6 +15,9 @@ export const KANWIL_LIST = [
 
 export type KanwilOption = typeof KANWIL_LIST[number];
 
+export const USER_ROLES = ['Desktop Support', 'Admin', 'Supervisor'] as const;
+export type UserRole = typeof USER_ROLES[number];
+
 export interface UserProfile {
   uid: string;
   email: string;
@@ -32,6 +35,8 @@ export interface RegisterPayload {
   email: string;
   kanwil: string;
   password: string;
+  nik?: string;
+  role?: string;
 }
 
 export interface LoginPayload {
@@ -42,4 +47,15 @@ export interface LoginPayload {
 export interface DirectResetPayload {
   email: string;
   newPassword: string;
+}
+
+export interface AdminUserSavePayload {
+  uid?: string;
+  displayName: string;
+  email: string;
+  kanwil: string;
+  unitKerja?: string;
+  nik?: string;
+  role: string;
+  password?: string;
 }

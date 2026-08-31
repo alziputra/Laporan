@@ -8,11 +8,13 @@ import { onAuthStateChanged } from 'firebase/auth';
 
 interface AuthContextType {
   userProfile: UserProfile | null;
+  isAdmin: boolean;
   loading: boolean;
   login: (payload: LoginPayload) => Promise<UserProfile>;
   register: (payload: RegisterPayload) => Promise<UserProfile>;
   resetPasswordEmail: (email: string) => Promise<void>;
   resetPasswordDirectly: (payload: { email: string; newPassword: string }) => Promise<void>;
+  refreshUserProfile: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -22,19 +24,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const fetchProfile = async (uid: string) => {
+    try {
+      const profile = await authService.getUserProfile(uid);
+      setUserProfile(profile);
+    } catch (err) {
+      console.error('Failed to load user profile:', err);
+      setUserProfile(null);
+    }
+  };
+
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
 
     if (isFirebaseConfigured && auth) {
       unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
         if (firebaseUser) {
-          try {
-            const profile = await authService.getUserProfile(firebaseUser.uid);
-            setUserProfile(profile);
-          } catch (err) {
-            console.error('Failed to load user profile:', err);
-            setUserProfile(null);
-          }
+          await fetchProfile(firebaseUser.uid);
         } else {
           setUserProfile(null);
         }
@@ -51,6 +57,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (unsubscribe) unsubscribe();
     };
   }, []);
+
+  const refreshUserProfile = async () => {
+    if (userProfile?.uid) {
+      await fetchProfile(userProfile.uid);
+    }
+  };
 
   const login = async (payload: LoginPayload): Promise<UserProfile> => {
     const profile = await authService.login(payload);
@@ -77,8 +89,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUserProfile(null);
   };
 
+  // Check if role is admin or email includes admin
+  const isAdmin = Boolean(
+    userProfile && (
+      userProfile.role === 'Admin' ||
+      userProfile.role === 'Supervisor' ||
+      userProfile.role === 'Super Admin' ||
+      userProfile.email.toLowerCase().startsWith('admin')
+    )
+  );
+
   return (
-    <AuthContext.Provider value={{ userProfile, loading, login, register, resetPasswordEmail, resetPasswordDirectly, logout }}>
+    <AuthContext.Provider value={{
+      userProfile,
+      isAdmin,
+      loading,
+      login,
+      register,
+      resetPasswordEmail,
+      resetPasswordDirectly,
+      refreshUserProfile,
+      logout
+    }}>
       {children}
     </AuthContext.Provider>
   );
