@@ -5,7 +5,6 @@ import {
   Users,
   UserPlus,
   Shield,
-  ShieldAlert,
   ShieldCheck,
   Search,
   Filter,
@@ -33,7 +32,7 @@ import {
   UserCheck
 } from 'lucide-react';
 import { UserProfile, KANWIL_LIST, USER_ROLES, AdminUserSavePayload } from '@/types/user';
-import { DailyReport, ReportCategory } from '@/types/report';
+import { DailyReport } from '@/types/report';
 import { authService } from '@/services/authService';
 import { reportsService } from '@/services/reportsService';
 import { useAuth } from '@/context/AuthContext';
@@ -559,7 +558,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                 </span>
               </div>
               <p className="text-xs text-emerald-100/90 font-medium mt-1">
-                Kelola hak akses personil, monitoring seluruh tiket IT Support se-Indonesia, dan evaluasi kepatuhan SLA.
+                Kelola hak akses personil, monitoring seluruh laporan IT Support se-Indonesia, dan evaluasi kepatuhan SLA.
               </p>
             </div>
           </div>
@@ -969,7 +968,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
               <div>
                 <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider truncate">Laporan Hari Ini</p>
                 <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-emerald-700 mt-0.5 sm:mt-1">{reportStats.todayCount}</h3>
-                <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium mt-0.5 truncate">Tiket aktif hari ini</p>
+                <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium mt-0.5 truncate">Laporan aktif hari ini</p>
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shrink-0">
                 <Clock className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -1359,7 +1358,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                       let diff = (eh * 60 + em) - (sh * 60 + sm);
                       if (diff < 0) diff += 1440;
                       return diff <= 5;
-                    }).length} Tiket
+                    }).length} Laporan
                   </span>
                 </div>
 
@@ -1376,7 +1375,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                       let diff = (eh * 60 + em) - (sh * 60 + sm);
                       if (diff < 0) diff += 1440;
                       return diff > 5 && diff <= 15;
-                    }).length} Tiket
+                    }).length} Laporan
                   </span>
                 </div>
 
@@ -1393,7 +1392,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                       let diff = (eh * 60 + em) - (sh * 60 + sm);
                       if (diff < 0) diff += 1440;
                       return diff > 15;
-                    }).length} Tiket
+                    }).length} Laporan
                   </span>
                 </div>
               </div>
@@ -1432,7 +1431,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                           </div>
                         </div>
                         <span className="font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200 shrink-0">
-                          {u.ticketCount} Tiket
+                          {u.ticketCount} Laporan
                         </span>
                       </div>
                     );

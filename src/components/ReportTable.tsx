@@ -27,7 +27,7 @@ import {
   Zap,
   X
 } from 'lucide-react';
-import { DailyReport, ReportCategory } from '@/types/report';
+import { DailyReport } from '@/types/report';
 import { calculateSLA, getDayName, formatDateFormatted } from '@/utils/exportUtils';
 import { ConfirmModal } from '@/components/ConfirmModal';
 

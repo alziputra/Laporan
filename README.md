@@ -24,9 +24,9 @@ Developed with ❤️ by **Alzi Rahmana Putra** © 2026
 | ![Admin Statistik & Kinerja SLA](./public/admin-1.jpeg) | ![Admin Monitoring Seluruh Laporan](./public/admin-2.jpeg) |
 
 ### 💻 Halaman Desktop Support (`/`)
-| 📝 Tabel Pekerjaan Harian | 📥 Modal Export Multi-Sheet Excel |
+| 📝 Tabel Pekerjaan Harian | ☑️Tambah laporan baru |
 | :---: | :---: |
-| ![User Pelaporan Harian](./public/user-1.jpeg) | ![User Export Laporan](./public/user-2.jpeg) |
+| ![User Pelaporan Harian](./public/user-1.jpeg) | ![User tambah Laporan](./public/user-2.jpeg) |
 
 ---
 
