@@ -1,5 +1,14 @@
 # 🏢 Pegadaian IT Support Daily Reporting & Executive Dashboard
 
+<p align="left">
+  <img src="https://img.shields.io/badge/NEXT.JS%2016-000000?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js" />
+  <img src="https://img.shields.io/badge/TYPESCRIPT%205-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/REACT%2019-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React" />
+  <img src="https://img.shields.io/badge/FIREBASE%2012-FFCA28?style=for-the-badge&logo=firebase&logoColor=black" alt="Firebase" />
+  <img src="https://img.shields.io/badge/TAILWIND%20CSS%204-38B2AC?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="Tailwind CSS" />
+  <img src="https://img.shields.io/badge/EXCELJS-1E7145?style=for-the-badge&logo=microsoftexcel&logoColor=white" alt="ExcelJS" />
+</p>
+
 Aplikasi Web Pelaporan Pekerjaan Harian & Control Center Monitoring Nasional untuk **Desktop Support PT. Pegadaian**.
 
 Developed with ❤️ by **Alzi Rahmana Putra** © 2026  
@@ -9,9 +18,15 @@ Developed with ❤️ by **Alzi Rahmana Putra** © 2026
 
 ## 📸 Tampilan Aplikasi
 
-| 📊 Executive Admin Dashboard (`/admin`) | 📝 Pelaporan Harian Desktop Support (`/`) |
+### 🛡️ Panel Administrator (`/admin`)
+| 📊 Statistik & Kinerja SLA | 📋 Monitoring Seluruh Laporan |
 | :---: | :---: |
-| Monitoring, Analytics SLA, & Manajemen User | Input Pekerjaan, Filter Live, & Export Excel |
+| ![Admin Statistik & Kinerja SLA](./public/admin-1.jpeg) | ![Admin Monitoring Seluruh Laporan](./public/admin-2.jpeg) |
+
+### 💻 Halaman Desktop Support (`/`)
+| 📝 Tabel Pekerjaan Harian | 📥 Modal Export Multi-Sheet Excel |
+| :---: | :---: |
+| ![User Pelaporan Harian](./public/user-1.jpeg) | ![User Export Laporan](./public/user-2.jpeg) |
 
 ---
 
@@ -76,17 +91,6 @@ Halaman kerja harian personil IT Support di lapangan:
 
 ---
 
-## 🛠️ Tech Stack
-
-* **Framework**: [Next.js 14 (App Router)](https://nextjs.org/)
-* **Language**: [TypeScript](https://www.typescriptlang.org/)
-* **Styling**: [Tailwind CSS](https://tailwindcss.com/)
-* **Icons**: [Lucide React](https://lucide.dev/)
-* **Database & Auth**: [Firebase Firestore & Firebase Authentication](https://firebase.google.com/)
-* **Spreadsheet Engine**: [XLSX (SheetJS)](https://sheetjs.com/)
-
----
-
 ## 🚀 Panduan Instalasi & Menjalankan Lokal
 
 ### 1. Clone Repositori
@@ -100,15 +104,15 @@ cd Laporan
 npm install
 ```
 
-### 3. Konfigurasi Environment Variable (`.env.local`)
-Buat file `.env.local` di root direktori project:
+### 3. Konfigurasi Environment Variable (`.env`)
+Buat file `.env` di root direktori project:
 ```env
-NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSy...
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789012
-NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789012:web:abcdef123456
+NEXT_PUBLIC_FIREBASE_API_KEY=Xxxxxx...
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=Xxxxxx...
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=Xxxxxx...
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=Xxxxxx...
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=Xxxxxx...
+NEXT_PUBLIC_FIREBASE_APP_ID=Xxxxxx...
 ```
 
 ### 4. Jalankan Development Server
@@ -122,37 +126,8 @@ Buka browser di:
 
 ---
 
-## 📁 Struktur Folder Project
-
-```text
-src/
-├── app/
-│   ├── admin/
-│   │   └── page.tsx            # Halaman Dedicated Admin Control Center (/admin)
-│   ├── layout.tsx              # Root Layout
-│   └── page.tsx               # Halaman Utama Desktop Support (/)
-├── components/
-│   ├── AdminUserManagement.tsx # Dashboard 3-Tab Admin (Analytics, Monitoring, Users)
-│   ├── ExportModal.tsx         # Modal Export Excel dengan Siklus Tanggal & Multi-Sheet
-│   ├── Header.tsx              # Navigasi Atas & User Profile Menu
-│   ├── ReportDetailModal.tsx   # Modal Tinjauan Detail Laporan (Read-Only di Admin)
-│   ├── ReportFormModal.tsx     # Form Tambah & Edit Laporan Pekerjaan
-│   └── ReportTable.tsx         # Tabel Laporan Desktop Support
-├── contexts/
-│   └── AuthContext.tsx         # Context Autentikasi Pengguna & Role Guard
-├── services/
-│   ├── authService.ts          # Integrasi Firebase Auth & Profil Pengguna
-│   └── reportsService.ts       # Operasi CRUD Laporan di Firestore & Local
-├── types/
-│   ├── report.ts               # Interface Data Laporan & Kategori
-│   └── user.ts                 # Interface UserProfile, Kanwil & Role
-└── utils/
-    └── exportUtils.ts          # Generator Export Excel Multi-Sheet
-```
-
----
 
 ## 📄 Lisensi & Kontribusi
 
-Dikembangkan khusus untuk mendukung operasional divisi TI **PT. Pegadaian**.  
+Dikembangkan khusus untuk mendukung operasional divisi OITI **Kantor Wilayah PT. Pegadaian**.  
 Copyright © 2026 **Alzi Rahmana Putra**. All Rights Reserved.
