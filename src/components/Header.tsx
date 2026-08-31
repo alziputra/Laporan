@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { Database, Clock, User, LogOut, LogIn, ShieldCheck } from 'lucide-react';
 import { isFirebaseConfigured } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
@@ -12,7 +13,20 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onOpenAuthModal, onOpenAdminPanel, activeView = 'reports' }) => {
+  const router = useRouter();
   const { userProfile, isAdmin, logout } = useAuth();
+
+  const handleAdminClick = () => {
+    if (onOpenAdminPanel) {
+      onOpenAdminPanel();
+    } else {
+      if (activeView === 'admin') {
+        router.push('/');
+      } else {
+        router.push('/admin');
+      }
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -75,19 +89,15 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuthModal, onOpenAdminPane
             <span className="inline md:hidden">{isFirebaseConfigured ? 'Cloud' : 'Local'}</span>
           </div>
 
-          {/* Admin Panel Button (If User is Admin or Supervisor) */}
-          {userProfile && (isAdmin || userProfile.role === 'Admin') && (
+          {/* Admin Panel Button (If User is Admin on Reports View) */}
+          {userProfile && (isAdmin || userProfile.role === 'Admin') && activeView !== 'admin' && (
             <button
-              onClick={onOpenAdminPanel}
-              className={`flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-xl font-extrabold text-[11px] sm:text-xs shadow-xs transition-all active:scale-95 border ${
-                activeView === 'admin'
-                  ? 'bg-amber-400 text-amber-950 border-amber-300 ring-2 ring-amber-400/40'
-                  : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white border-amber-400/50'
-              }`}
-              title="Panel Manajemen User & Pengguna"
+              onClick={handleAdminClick}
+              className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-xl font-extrabold text-[11px] sm:text-xs shadow-xs transition-all active:scale-95 border bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white border-amber-400/50"
+              title="Buka Panel Admin"
             >
               <ShieldCheck className="w-3.5 h-3.5 text-amber-100" />
-              <span className="hidden sm:inline">{activeView === 'admin' ? 'Kembali' : 'Kelola User'}</span>
+              <span className="hidden sm:inline">Admin Panel</span>
             </button>
           )}
 

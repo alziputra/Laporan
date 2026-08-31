@@ -373,7 +373,12 @@ export const ReportTable: React.FC<ReportTableProps> = ({
                 type="button"
                 onClick={() => {
                   try {
-                    dateInputRef.current?.showPicker();
+                    const input = dateInputRef.current as any;
+                    if (input?.showPicker) {
+                      input.showPicker();
+                    } else {
+                      input?.focus();
+                    }
                   } catch {
                     dateInputRef.current?.focus();
                   }

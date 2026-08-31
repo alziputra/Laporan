@@ -100,6 +100,47 @@ export const reportsService = {
     return allLocal.filter((r) => r.userId === userId || (!r.userId && displayName && r.picSupport?.toLowerCase().includes(displayName.toLowerCase())));
   },
 
+  // Admin feature: Fetch all reports across all registered users
+  async getAllUsersReports(users: { uid: string; displayName?: string }[]): Promise<DailyReport[]> {
+    if (isFirebaseConfigured && db && users.length > 0) {
+      try {
+        const promises = users.map(async (u) => {
+          const userSubcollectionRef = collection(db, USER_REPORTS_COLLECTION, u.uid, 'reports');
+          const snapshot = await getDocs(userSubcollectionRef);
+          const data: DailyReport[] = [];
+          snapshot.forEach((docSnap) => {
+            data.push({ id: docSnap.id, userId: u.uid, ...docSnap.data() } as DailyReport);
+          });
+          return data;
+        });
+
+        const results = await Promise.all(promises);
+        const allReports = results.flat();
+        
+        if (allReports.length > 0) {
+          allReports.sort((a, b) => (Number(b.createdAt || 0) - Number(a.createdAt || 0)));
+          return allReports;
+        }
+
+        // Check root collection if subcollections are empty
+        const rootSnap = await getDocs(collection(db, 'reports'));
+        const rootData: DailyReport[] = [];
+        rootSnap.forEach((d) => {
+          rootData.push({ id: d.id, ...d.data() } as DailyReport);
+        });
+        if (rootData.length > 0) {
+          rootData.sort((a, b) => (Number(b.createdAt || 0) - Number(a.createdAt || 0)));
+          return rootData;
+        }
+      } catch (err) {
+        console.error("Failed to fetch all users reports from Firestore, reading local:", err);
+      }
+    }
+
+    // Local Storage Fallback
+    return getLocalReports();
+  },
+
   // Add new report into user's subcollection: user-reports/{userId}/reports
   async createReport(report: DailyReport, userId?: string): Promise<DailyReport> {
     const timestamp = Date.now();

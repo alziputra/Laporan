@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Header } from '@/components/Header';
 import { ReportTable } from '@/components/ReportTable';
 import { ReportFormModal } from '@/components/ReportFormModal';
 import { ExportModal } from '@/components/ExportModal';
 import { ReportDetailModal } from '@/components/ReportDetailModal';
 import { AuthModal } from '@/components/AuthModal';
-import { AdminUserManagement } from '@/components/AdminUserManagement';
 import { Toast } from '@/components/Toast';
 import { reportsService } from '@/services/reportsService';
 import { DailyReport, ReportCategory } from '@/types/report';
@@ -15,9 +15,9 @@ import { useAuth } from '@/context/AuthContext';
 import { Loader2 } from 'lucide-react';
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { userProfile, loading: authLoading, isAdmin } = useAuth();
 
-  const [currentView, setCurrentView] = useState<'reports' | 'admin'>('reports');
   const [reports, setReports] = useState<DailyReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
@@ -60,16 +60,25 @@ export default function DashboardPage() {
     }
   };
 
+  // Auth & Role-Based Routing
   useEffect(() => {
     if (!authLoading) {
-      loadReports(userProfile?.uid, userProfile?.displayName);
-      if (!userProfile) {
+      if (userProfile) {
+        // If user is Admin, automatically redirect to /admin
+        if (userProfile.role === 'Admin' || isAdmin) {
+          router.replace('/admin');
+          return;
+        }
+        // If user is regular Desktop Support / Supervisor, stay on / and load reports
+        loadReports(userProfile.uid, userProfile.displayName);
+      } else {
         setAuthInitialTab('login');
         setIsAuthOpen(true);
-        setCurrentView('reports');
+        setReports([]);
+        setLoading(false);
       }
     }
-  }, [userProfile, authLoading]);
+  }, [userProfile, authLoading, isAdmin, router]);
 
   // Save or Edit report
   const handleSaveReport = async (reportData: DailyReport) => {
@@ -115,30 +124,26 @@ export default function DashboardPage() {
     setIsFormOpen(true);
   };
 
-  const handleToggleAdminPanel = () => {
-    if (!userProfile) {
-      handleOpenAuthModal('login');
-      return;
-    }
-    setCurrentView((prev) => (prev === 'admin' ? 'reports' : 'admin'));
-  };
-
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
       {/* Top Navbar & Header */}
       <Header
         onOpenAuthModal={handleOpenAuthModal}
-        onOpenAdminPanel={handleToggleAdminPanel}
-        activeView={currentView}
+        onOpenAdminPanel={() => router.push('/admin')}
+        activeView="reports"
       />
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 md:px-8 py-3.5 sm:py-6 pb-24 md:pb-6">
-        {currentView === 'admin' ? (
-          <AdminUserManagement
-            onBackToDashboard={() => setCurrentView('reports')}
-            onShowToast={showToast}
-          />
+        {authLoading || (userProfile && (userProfile.role === 'Admin' || isAdmin)) ? (
+          <div className="py-24 flex flex-col items-center justify-center space-y-3">
+            <Loader2 className="w-8 h-8 animate-spin text-pegadaian-600" />
+            <p className="text-xs font-semibold text-slate-500">
+              {userProfile?.role === 'Admin' || isAdmin
+                ? 'Mengarahkan ke Halaman Admin...'
+                : 'Memuat sesi pengguna...'}
+            </p>
+          </div>
         ) : loading ? (
           <div className="py-24 flex flex-col items-center justify-center space-y-3">
             <Loader2 className="w-8 h-8 animate-spin text-pegadaian-600" />
@@ -163,27 +168,18 @@ export default function DashboardPage() {
         <p>© 2026 Alzi Rahmana Putra</p>
       </footer>
 
-      {/* Floating Action Button (FAB) for Mobile Screens (< md) - only shown in reports view */}
-      {currentView === 'reports' && (
-        <div className="fixed bottom-4 right-4 z-40 block md:hidden">
-          <button
-            onClick={handleOpenAddModal}
-            className="flex items-center gap-2 bg-gradient-to-r from-pegadaian-600 to-pegadaian-700 hover:from-pegadaian-700 hover:to-pegadaian-800 text-white font-extrabold px-4 py-3 rounded-full shadow-2xl transition-all active:scale-95 border-2 border-white ring-4 ring-pegadaian-600/20"
-          >
-            <span className="text-xl leading-none">+</span>
-            <span className="text-xs font-extrabold tracking-wide">Buat Laporan</span>
-          </button>
-        </div>
-      )}
+      {/* Floating Action Button (FAB) for Mobile Screens (< md) */}
+      <div className="fixed bottom-4 right-4 z-40 block md:hidden">
+        <button
+          onClick={handleOpenAddModal}
+          className="flex items-center gap-2 bg-gradient-to-r from-pegadaian-600 to-pegadaian-700 hover:from-pegadaian-700 hover:to-pegadaian-800 text-white font-extrabold px-4 py-3 rounded-full shadow-2xl transition-all active:scale-95 border-2 border-white ring-4 ring-pegadaian-600/20"
+        >
+          <span className="text-xl leading-none">+</span>
+          <span className="text-xs font-extrabold tracking-wide">Buat Laporan</span>
+        </button>
+      </div>
 
       {/* Modals */}
-      <AuthModal
-        isOpen={isAuthOpen}
-        onClose={() => setIsAuthOpen(false)}
-        initialTab={authInitialTab}
-        onSuccess={(msg) => showToast(msg)}
-      />
-
       <ReportFormModal
         isOpen={isFormOpen}
         onClose={() => {
@@ -201,27 +197,36 @@ export default function DashboardPage() {
         reports={reports}
       />
 
-      <ReportDetailModal
-        isOpen={!!viewingReport}
-        report={viewingReport}
-        onClose={() => setViewingReport(null)}
-        onEdit={(report) => {
-          setViewingReport(null);
-          handleOpenEdit(report);
-        }}
-        onDelete={(id) => {
-          handleDeleteReport(id);
-          setViewingReport(null);
-        }}
+      {viewingReport && (
+        <ReportDetailModal
+          isOpen={!!viewingReport}
+          onClose={() => setViewingReport(null)}
+          report={viewingReport}
+          onEdit={(rep) => {
+            setViewingReport(null);
+            handleOpenEdit(rep);
+          }}
+          onDelete={(id) => {
+            setViewingReport(null);
+            handleDeleteReport(id);
+          }}
+        />
+      )}
+
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        initialTab={authInitialTab}
+        onSuccess={(msg) => showToast(msg)}
       />
 
-      {/* Toast Feedback */}
-      <Toast
-        message={toastMessage}
-        onClose={() => setToastMessage(null)}
-      />
+      {/* Toast */}
+      {toastMessage && (
+        <Toast
+          message={toastMessage}
+          onClose={() => setToastMessage(null)}
+        />
+      )}
     </div>
   );
 }
-
-
