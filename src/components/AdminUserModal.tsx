@@ -106,16 +106,16 @@ export const AdminUserModal: React.FC<AdminUserModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100 animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/65 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+      <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100 animate-in fade-in zoom-in duration-200 flex flex-col max-h-[86vh] sm:max-h-[90vh] my-auto">
         {/* Header */}
-        <div className="bg-gradient-to-r from-pegadaian-800 via-pegadaian-700 to-pegadaian-800 px-6 py-5 text-white flex items-center justify-between">
+        <div className="bg-gradient-to-r from-pegadaian-800 via-pegadaian-700 to-pegadaian-800 px-5 sm:px-6 py-4 text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-white/10 rounded-xl border border-white/20">
               <Shield className="w-5 h-5 text-emerald-300" />
             </div>
             <div>
-              <h3 className="text-base font-bold tracking-tight">
+              <h3 className="text-sm sm:text-base font-extrabold tracking-tight">
                 {isEditing ? 'Edit Akun Pengguna' : 'Tambah Pengguna Baru'}
               </h3>
               <p className="text-xs text-emerald-200">
@@ -133,14 +133,14 @@ export const AdminUserModal: React.FC<AdminUserModalProps> = ({
 
         {/* Error Notification */}
         {errorMessage && (
-          <div className="mx-6 mt-5 p-3 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2.5 text-red-700 text-xs">
+          <div className="mx-5 sm:mx-6 mt-4 p-3 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2.5 text-red-700 text-xs shrink-0">
             <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
             <p className="font-medium">{errorMessage}</p>
           </div>
         )}
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
           {/* Display Name */}
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1.5">

@@ -55,11 +55,11 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/65 backdrop-blur-sm flex items-center justify-center p-4">
-        <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100 animate-in fade-in zoom-in duration-200">
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/65 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+        <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[86vh] sm:max-h-[90vh] my-auto border border-slate-100 animate-in fade-in zoom-in duration-200">
           
           {/* Header */}
-          <div className="bg-gradient-to-r from-pegadaian-800 via-pegadaian-700 to-pegadaian-800 text-white px-6 py-5 flex items-center justify-between">
+          <div className="bg-gradient-to-r from-pegadaian-800 via-pegadaian-700 to-pegadaian-800 text-white px-5 sm:px-6 py-4 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white/10 rounded-xl border border-white/20">
                 <FileText className="w-5 h-5 text-emerald-300" />
@@ -89,7 +89,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
           {/* Body */}
           <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
             {/* Grid Information Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200/80 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200/80 text-xs">
               <div>
                 <span className="text-slate-400 font-bold block text-[10px] uppercase">Hari & Tanggal</span>
                 <span className="font-extrabold text-slate-800 mt-0.5 block">{dayName}, {formattedDate}</span>
@@ -101,10 +101,6 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
               <div>
                 <span className="text-slate-400 font-bold block text-[10px] uppercase">PIC Support</span>
                 <span className="font-extrabold text-emerald-800 mt-0.5 block">{report.picSupport}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 font-bold block text-[10px] uppercase">Metode</span>
-                <span className="font-bold text-slate-800 mt-0.5 block">{report.metodePenanganan}</span>
               </div>
             </div>
 

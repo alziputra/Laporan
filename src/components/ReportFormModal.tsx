@@ -13,16 +13,14 @@ import {
   ShieldAlert, 
   Building2, 
   ClipboardList, 
-  PhoneCall, 
-  Radio, 
-  UserCheck, 
   Clock, 
   Calendar, 
   User, 
   Building, 
-  FileText 
+  FileText,
+  Loader2
 } from 'lucide-react';
-import { DailyReport, ReportCategory, MetodePenanganan } from '@/types/report';
+import { DailyReport, ReportCategory } from '@/types/report';
 import { useAuth } from '@/context/AuthContext';
 
 interface ReportFormModalProps {
@@ -41,12 +39,6 @@ const CATEGORY_OPTIONS: { value: ReportCategory; label: string; icon: React.Comp
   { value: 'Malware', label: 'Malware & Security', icon: ShieldAlert },
   { value: 'Relokasi/Renovasi', label: 'Relokasi / Renovasi', icon: Building2 },
   { value: 'Lainnya', label: 'Lainnya', icon: ClipboardList },
-];
-
-const METHOD_OPTIONS: { value: MetodePenanganan; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { value: 'Guide', label: 'Guide', icon: PhoneCall },
-  { value: 'Remote', label: 'Remote', icon: Radio },
-  { value: 'Visit', label: 'Visit', icon: UserCheck },
 ];
 
 export const ReportFormModal: React.FC<ReportFormModalProps> = ({
@@ -152,53 +144,39 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
   const SelectedIcon = selectedCatObj.icon;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/65 backdrop-blur-sm p-0 sm:p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/65 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
       <div
-        className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col h-[94vh] sm:h-auto max-h-[94vh] sm:max-h-[90vh] border border-slate-100 animate-in fade-in zoom-in duration-200"
+        className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[86vh] sm:max-h-[90vh] my-auto border border-slate-100 animate-in fade-in zoom-in duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header with gradient */}
-        <div className="bg-gradient-to-r from-pegadaian-800 via-pegadaian-700 to-pegadaian-800 text-white px-5 sm:px-6 py-4 flex items-center justify-between sticky top-0 z-20">
+        <div className="bg-gradient-to-r from-pegadaian-800 via-pegadaian-700 to-pegadaian-800 text-white px-5 sm:px-6 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-full hover:bg-white/20 text-emerald-100 hover:text-white transition-colors"
-              type="button"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="p-2 bg-white/10 rounded-xl border border-white/20">
+              <FileText className="w-5 h-5 text-emerald-300" />
+            </div>
             <div>
-              <h2 className="text-base sm:text-lg font-extrabold tracking-tight">
+              <h2 className="text-sm sm:text-lg font-extrabold tracking-tight">
                 {initialData ? 'Edit Laporan Pekerjaan' : 'Buat Laporan Pekerjaan'}
               </h2>
-              <p className="text-xs text-emerald-200 font-medium">
+              <p className="text-[11px] sm:text-xs text-emerald-200 font-medium">
                 {formData.category}
               </p>
             </div>
           </div>
 
-          <div className="hidden sm:flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl border border-white/20 text-white font-bold text-xs hover:bg-white/10 transition-colors"
-            >
-              Batal
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-              className="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-pegadaian-950 font-extrabold text-xs transition-all shadow-md active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
-            >
-              <Save className="w-4 h-4" />
-              <span>{isSubmitting ? 'Menyimpan...' : 'Simpan Laporan'}</span>
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-full hover:bg-white/20 text-emerald-100 hover:text-white transition-colors"
+            type="button"
+            title="Tutup"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Scrollable Form Body */}
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1 pb-24 sm:pb-6">
+        <form onSubmit={handleSubmit} id="report-modal-form" className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1">
           {/* Custom Category Dropdown Selector */}
           <div className="relative" ref={dropdownRef}>
             <label className="block text-xs font-bold text-slate-700 mb-1.5">
@@ -314,34 +292,6 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
             {errors.deskripsiPermohonan && <p className="text-[11px] text-red-500 font-semibold mt-1">{errors.deskripsiPermohonan}</p>}
           </div>
 
-          {/* Metode Penanganan (Segmented Button Group) */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              Metode Penanganan <span className="text-red-500">*</span>
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {METHOD_OPTIONS.map((m) => {
-                const Icon = m.icon;
-                const isSelected = formData.metodePenanganan === m.value;
-                return (
-                  <button
-                    key={m.value}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, metodePenanganan: m.value })}
-                    className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                      isSelected
-                        ? 'bg-pegadaian-50 border-pegadaian-600 text-pegadaian-900 shadow-xs ring-1 ring-pegadaian-600'
-                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    <Icon className={`w-4 h-4 ${isSelected ? 'text-pegadaian-700' : 'text-slate-400'}`} />
-                    <span>{m.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
           {/* Solusi Issue */}
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1.5">
@@ -417,23 +367,33 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
           </div>
         </form>
 
-        {/* Sticky Mobile Submit Footer Bar */}
-        <div className="p-3.5 bg-white border-t border-slate-200 flex items-center gap-2 sm:hidden sticky bottom-0 z-20 shadow-lg">
+        {/* Universal Clean Footer Action Bar */}
+        <div className="p-3.5 sm:p-4 bg-slate-50 border-t border-slate-200/80 flex items-center justify-end gap-2.5 shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs bg-slate-50 active:bg-slate-100"
+            disabled={isSubmitting}
+            className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs bg-white hover:bg-slate-100 transition-colors"
           >
             Batal
           </button>
           <button
             type="submit"
-            onClick={handleSubmit}
+            form="report-modal-form"
             disabled={isSubmitting}
-            className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-pegadaian-600 to-emerald-600 hover:from-pegadaian-700 hover:to-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 disabled:opacity-50"
+            className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-pegadaian-600 to-emerald-600 hover:from-pegadaian-700 hover:to-emerald-700 text-white font-extrabold text-xs shadow-md shadow-pegadaian-600/20 active:scale-95 transition-all disabled:opacity-50"
           >
-            <Save className="w-4 h-4" />
-            <span>{isSubmitting ? 'Menyimpan...' : 'Simpan Laporan'}</span>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Menyimpan...</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                <span>Simpan Laporan</span>
+              </>
+            )}
           </button>
         </div>
       </div>

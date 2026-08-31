@@ -70,25 +70,25 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/65 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden border border-slate-100 animate-in fade-in zoom-in duration-200"
+        className="relative bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden border border-slate-100 animate-in fade-in zoom-in duration-200 flex flex-col max-h-[86vh] sm:max-h-[90vh] my-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="bg-gradient-to-r from-pegadaian-700 to-pegadaian-600 px-6 py-4 text-white flex items-center justify-between">
+        <div className="bg-gradient-to-r from-pegadaian-800 via-pegadaian-700 to-pegadaian-800 px-5 sm:px-6 py-4 text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-white/10 rounded-lg backdrop-blur-sm">
-              <FileSpreadsheet className="w-5 h-5 text-emerald-200" />
+            <div className="p-2 bg-white/10 rounded-xl border border-white/20">
+              <FileSpreadsheet className="w-5 h-5 text-emerald-300" />
             </div>
             <div>
-              <h3 className="font-bold text-lg leading-tight">Export Laporan Excel</h3>
-              <p className="text-xs text-pegadaian-100">Filter berdasarkan rentang tanggal & kategori</p>
+              <h3 className="font-extrabold text-base sm:text-lg leading-tight">Export Laporan Excel</h3>
+              <p className="text-xs text-emerald-200">Filter berdasarkan rentang tanggal & kategori</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-white/20 text-white transition-colors"
+            className="p-1.5 rounded-full hover:bg-white/20 text-emerald-100 hover:text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
