@@ -3,15 +3,20 @@ import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 
-const jakarta = Plus_Jakarta_Sans({ 
+const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700', '800'],
   variable: '--font-jakarta'
 });
 
 export const metadata: Metadata = {
-  title: 'Desktop Support Pegadaian - Sistem Pelaporan Pekerjaan Harian',
+  title: 'MS Kanwil - Sistem Pelaporan Pekerjaan Harian',
   description: 'Aplikasi pelaporan harian troubleshoot hardware, software, jaringan, dan layanan IT Kanwil Pegadaian.',
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  }
 };
 
 export default function RootLayout({
