@@ -31,6 +31,7 @@ interface ReportFormModalProps {
   onSave: (report: DailyReport) => Promise<void>;
   initialData?: DailyReport | null;
   defaultCategory?: ReportCategory;
+  defaultDate?: string;
 }
 
 const CATEGORY_OPTIONS: { value: ReportCategory; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -48,7 +49,8 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
   onClose,
   onSave,
   initialData,
-  defaultCategory = 'Hardware Kanwil'
+  defaultCategory = 'Hardware Kanwil',
+  defaultDate
 }) => {
   const { userProfile } = useAuth();
   const getTodayString = () => new Date().toISOString().split('T')[0];
@@ -65,8 +67,8 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
     metodePenanganan: 'Visit',
     solusiIssue: '',
     picSupport: defaultPic,
-    tanggalPengerjaan: getTodayString(),
-    tanggalSelesai: getTodayString(),
+    tanggalPengerjaan: defaultDate || getTodayString(),
+    tanggalSelesai: defaultDate || getTodayString(),
     waktuMulai: '08:30',
     waktuSelesai: '10:00',
     status: 'Selesai',
@@ -80,6 +82,7 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const targetDate = defaultDate || getTodayString();
     if (initialData) {
       setFormData(initialData);
     } else {
@@ -91,8 +94,8 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
         metodePenanganan: 'Visit',
         solusiIssue: '',
         picSupport: defaultPic,
-        tanggalPengerjaan: getTodayString(),
-        tanggalSelesai: getTodayString(),
+        tanggalPengerjaan: targetDate,
+        tanggalSelesai: targetDate,
         waktuMulai: '08:30',
         waktuSelesai: '10:00',
         status: 'Selesai',
@@ -100,7 +103,7 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
     }
     setErrors({});
     setIsCategoryDropdownOpen(false);
-  }, [initialData, defaultCategory, isOpen, userProfile]);
+  }, [initialData, defaultCategory, defaultDate, isOpen, userProfile]);
 
   // Click outside to close custom dropdown
   useEffect(() => {

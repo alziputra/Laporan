@@ -25,7 +25,10 @@ import {
   Layers,
   Sparkles,
   Zap,
-  X
+  X,
+  CalendarX2,
+  AlertTriangle,
+  CheckCircle2
 } from 'lucide-react';
 import { DailyReport } from '@/types/report';
 import { calculateSLA, getDayName, formatDateFormatted } from '@/utils/exportUtils';
@@ -38,7 +41,7 @@ interface ReportTableProps {
   onViewDetail: (report: DailyReport) => void;
   onEdit: (report: DailyReport) => void;
   onDelete: (id: string) => void;
-  onOpenAddModal: () => void;
+  onOpenAddModal: (initialDate?: string) => void;
   onOpenExportModal: () => void;
 }
 
@@ -121,6 +124,73 @@ export const ReportTable: React.FC<ReportTableProps> = ({
     });
     return counts;
   }, [reports]);
+
+  // Missing Workdays (Senin - Jumat) Monitoring
+  const [missingDaysCycle, setMissingDaysCycle] = useState<'cycle21' | 'cycle13' | 'month' | 'last30'>('cycle21');
+  const [isMissingDaysModalOpen, setIsMissingDaysModalOpen] = useState(false);
+
+  const missingWorkdays = useMemo(() => {
+    const result: { date: string; dayName: string; formattedDate: string }[] = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const y = today.getFullYear();
+    const m = today.getMonth(); // 0-indexed
+
+    let startDate: Date;
+    let endDate: Date;
+
+    if (missingDaysCycle === 'cycle21') {
+      // 21 of last month up to today (or 20th of this month, whichever is earlier)
+      startDate = new Date(y, m - 1, 21);
+      const cutOffEnd = new Date(y, m, 20);
+      endDate = today < cutOffEnd ? today : cutOffEnd;
+    } else if (missingDaysCycle === 'cycle13') {
+      // 13 of last month up to today (or 12th of this month, whichever is earlier)
+      startDate = new Date(y, m - 1, 13);
+      const cutOffEnd = new Date(y, m, 12);
+      endDate = today < cutOffEnd ? today : cutOffEnd;
+    } else if (missingDaysCycle === 'month') {
+      // 1st of current month up to today
+      startDate = new Date(y, m, 1);
+      endDate = today;
+    } else {
+      // Last 30 days up to today
+      startDate = new Date(today);
+      startDate.setDate(startDate.getDate() - 30);
+      endDate = today;
+    }
+
+    // Set of dates that have at least 1 report
+    const reportedDatesSet = new Set(reports.map(r => r.tanggalPengerjaan));
+
+    const curr = new Date(startDate);
+    const indonesianDays = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+    while (curr <= endDate) {
+      const dayOfWeek = curr.getDay(); // 0: Sunday, 1: Monday, ..., 5: Friday, 6: Saturday
+      // Check if workday (Monday to Friday)
+      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+        const yearStr = curr.getFullYear();
+        const monthStr = String(curr.getMonth() + 1).padStart(2, '0');
+        const dayStr = String(curr.getDate()).padStart(2, '0');
+        const isoDate = `${yearStr}-${monthStr}-${dayStr}`;
+
+        if (!reportedDatesSet.has(isoDate)) {
+          result.push({
+            date: isoDate,
+            dayName: indonesianDays[dayOfWeek],
+            formattedDate: `${curr.getDate()} ${months[curr.getMonth()]} ${curr.getFullYear()}`
+          });
+        }
+      }
+      curr.setDate(curr.getDate() + 1);
+    }
+
+    // Return sorted descending (newest missing day first)
+    return result.reverse();
+  }, [reports, missingDaysCycle]);
 
   // Filtered dataset
   const filteredReports = useMemo(() => {
@@ -215,7 +285,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({
   return (
     <div className="space-y-4 sm:space-y-5">
       {/* 1. KPI / Stats Overview Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         {/* Card 1: Total Tiket */}
         <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between transition-all">
           <div className="min-w-0">
@@ -241,7 +311,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({
               {stats.todayCount}
             </h3>
             <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium mt-0.5 truncate">
-              Tiket tanggal aktif
+              Laporan aktif hari ini
             </p>
           </div>
           <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shrink-0 ml-2">
@@ -263,6 +333,48 @@ export const ReportTable: React.FC<ReportTableProps> = ({
           </div>
           <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center border border-teal-100 shrink-0 ml-2">
             <Zap className="w-5 h-5 sm:w-6 sm:h-6" />
+          </div>
+        </div>
+
+        {/* Card 4: Hari Kosong (Senin - Jumat) */}
+        <div 
+          onClick={() => setIsMissingDaysModalOpen(true)}
+          className={`p-3.5 sm:p-5 rounded-2xl border shadow-xs flex items-center justify-between transition-all cursor-pointer hover:shadow-md active:scale-98 ${
+            missingWorkdays.length === 0
+              ? 'bg-white border-slate-200/80 hover:border-emerald-300'
+              : 'bg-gradient-to-br from-amber-50/90 to-amber-100/50 border-amber-200 hover:border-amber-300'
+          }`}
+          title="Klik untuk melihat daftar hari kerja yang belum ada laporan"
+        >
+          <div className="min-w-0">
+            <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">Hari Kosong (Sen - Jum)</p>
+            <h3 className={`text-xl sm:text-2xl lg:text-3xl font-black mt-0.5 sm:mt-1 ${
+              missingWorkdays.length === 0 ? 'text-emerald-700' : 'text-amber-700'
+            }`}>
+              {missingWorkdays.length} <span className="text-xs sm:text-sm font-bold">Hari</span>
+            </h3>
+            <p className={`text-[10px] sm:text-[11px] font-bold mt-0.5 flex items-center gap-1 truncate ${
+              missingWorkdays.length === 0 ? 'text-emerald-600' : 'text-amber-700'
+            }`}>
+              {missingWorkdays.length === 0 ? (
+                <>
+                  <CheckCircle2 className="w-3 h-3 shrink-0" />
+                  <span>Semua Hari Terisi ✨</span>
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="w-3 h-3 shrink-0" />
+                  <span>Klik untuk lengkapi ⚠️</span>
+                </>
+              )}
+            </p>
+          </div>
+          <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center border shrink-0 ml-2 ${
+            missingWorkdays.length === 0
+              ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+              : 'bg-amber-100 text-amber-800 border-amber-200 animate-pulse'
+          }`}>
+            <CalendarX2 className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
         </div>
       </div>
@@ -336,8 +448,9 @@ export const ReportTable: React.FC<ReportTableProps> = ({
               </button>
 
               <button
-                onClick={onOpenAddModal}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-pegadaian-600 to-emerald-600 hover:from-pegadaian-700 hover:to-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all active:scale-95"
+                type="button"
+                onClick={() => onOpenAddModal()}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-pegadaian-600 to-emerald-600 hover:from-pegadaian-700 hover:to-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
               >
                 <PlusCircle className="w-4 h-4" />
                 <span>Buat Laporan</span>
@@ -478,8 +591,9 @@ export const ReportTable: React.FC<ReportTableProps> = ({
                         Coba ubah kata kunci pencarian, filter kategori, atau tanggal yang digunakan.
                       </p>
                       <button
-                        onClick={onOpenAddModal}
-                        className="mt-2 px-4 py-2 bg-pegadaian-600 hover:bg-pegadaian-700 text-white font-bold text-xs rounded-xl transition-all shadow-xs"
+                        type="button"
+                        onClick={() => onOpenAddModal()}
+                        className="mt-2 px-4 py-2 bg-pegadaian-600 hover:bg-pegadaian-700 text-white font-bold text-xs rounded-xl transition-all shadow-xs active:scale-95 cursor-pointer"
                       >
                         + Buat Laporan Sekarang
                       </button>
@@ -703,6 +817,177 @@ export const ReportTable: React.FC<ReportTableProps> = ({
         confirmText="Ya, Hapus"
         cancelText="Batal"
       />
+
+      {/* Missing Workdays (Senin - Jumat) Modal */}
+      {isMissingDaysModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/65 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto"
+          onClick={() => setIsMissingDaysModalOpen(false)}
+        >
+          <div
+            className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 animate-in fade-in zoom-in duration-200 flex flex-col max-h-[85vh] my-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-amber-700 via-amber-600 to-amber-700 px-5 sm:px-6 py-4 text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white/10 rounded-xl border border-white/20 shrink-0">
+                  <CalendarX2 className="w-5 h-5 text-amber-200" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base sm:text-lg leading-tight">Hari Kerja Belum Ada Laporan</h3>
+                  <p className="text-xs text-amber-100">Monitoring penginputan hari Senin - Jumat</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMissingDaysModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/25 active:scale-95 text-white flex items-center justify-center transition-all cursor-pointer shrink-0"
+                title="Tutup (Esc)"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
+              {/* Cycle Filter Switcher */}
+              <div>
+                <label className="block text-xs font-extrabold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Periode Pengecekan:</span>
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setMissingDaysCycle('cycle21')}
+                    className={`py-2 px-1.5 sm:px-2 rounded-xl text-xs font-black transition-all border text-center active:scale-95 cursor-pointer ${
+                      missingDaysCycle === 'cycle21'
+                        ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                        : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    21 Lalu - 20 Ini
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMissingDaysCycle('cycle13')}
+                    className={`py-2 px-1.5 sm:px-2 rounded-xl text-xs font-black transition-all border text-center active:scale-95 cursor-pointer ${
+                      missingDaysCycle === 'cycle13'
+                        ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                        : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    13 Lalu - 12 Ini
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMissingDaysCycle('month')}
+                    className={`py-2 px-1.5 sm:px-2 rounded-xl text-xs font-black transition-all border text-center active:scale-95 cursor-pointer ${
+                      missingDaysCycle === 'month'
+                        ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                        : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    Bulan Berjalan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMissingDaysCycle('last30')}
+                    className={`py-2 px-1.5 sm:px-2 rounded-xl text-xs font-black transition-all border text-center active:scale-95 cursor-pointer ${
+                      missingDaysCycle === 'last30'
+                        ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                        : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    30 Hari Terakhir
+                  </button>
+                </div>
+              </div>
+
+              {/* Status Banner */}
+              <div className={`p-3.5 rounded-2xl border flex items-center justify-between text-xs ${
+                missingWorkdays.length === 0
+                  ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                  : 'bg-amber-50 text-amber-900 border-amber-200'
+              }`}>
+                <div className="flex items-center gap-2">
+                  {missingWorkdays.length === 0 ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  )}
+                  <span className="font-bold">
+                    {missingWorkdays.length === 0
+                      ? 'Luar biasa! Seluruh hari kerja sudah memiliki laporan.'
+                      : `Terdapat ${missingWorkdays.length} hari kerja yang belum diisi.`}
+                  </span>
+                </div>
+              </div>
+
+              {/* List of Missing Workdays */}
+              {missingWorkdays.length > 0 ? (
+                <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+                  {missingWorkdays.map((item) => (
+                    <div
+                      key={item.date}
+                      className="p-3 bg-slate-50 hover:bg-amber-50/50 rounded-2xl border border-slate-200 hover:border-amber-200 flex items-center justify-between transition-all group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-black text-xs shrink-0">
+                          {item.dayName.slice(0, 3)}
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                            <span>{item.dayName}, {item.formattedDate}</span>
+                          </p>
+                          <p className="text-[10px] text-amber-700 font-semibold flex items-center gap-1 mt-0.5">
+                            <span>Belum ada laporan (0 tiket)</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsMissingDaysModalOpen(false);
+                          onOpenAddModal(item.date);
+                        }}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-2xs transition-all flex items-center gap-1 shrink-0 cursor-pointer"
+                        title={`Buat laporan untuk tanggal ${item.formattedDate}`}
+                      >
+                        <PlusCircle className="w-3.5 h-3.5" />
+                        <span>Isi Laporan</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-8 text-center space-y-2 bg-emerald-50/50 rounded-2xl border border-emerald-100">
+                  <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+                    <CheckCircle2 className="w-6 h-6" />
+                  </div>
+                  <h4 className="text-sm font-extrabold text-emerald-900">Laporan Anda Sudah Lengkap</h4>
+                  <p className="text-xs text-emerald-700 max-w-xs mx-auto">
+                    Tidak ada hari kerja (Senin - Jumat) yang terlewat pada siklus ini. Kerja bagus!
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-3.5 sm:p-4 bg-slate-50 border-t border-slate-200/80 flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => setIsMissingDaysModalOpen(false)}
+                className="px-5 py-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-extrabold text-xs rounded-xl transition-colors cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

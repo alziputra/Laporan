@@ -111,13 +111,16 @@ export default function DashboardPage() {
     setIsFormOpen(true);
   };
 
-  // Open add modal with auto-selected category if filtered
-  const handleOpenAddModal = () => {
+  const [defaultFormDate, setDefaultFormDate] = useState<string | undefined>(undefined);
+
+  // Open add modal with auto-selected category and optional prefilled date
+  const handleOpenAddModal = (initialDate?: string) => {
     if (!userProfile) {
       handleOpenAuthModal('login');
       return;
     }
     setEditingReport(null);
+    setDefaultFormDate(initialDate);
     if (selectedCategory && selectedCategory !== 'Semua') {
       setDefaultFormCategory(selectedCategory as ReportCategory);
     }
@@ -171,7 +174,7 @@ export default function DashboardPage() {
       {/* Floating Action Button (FAB) for Mobile Screens (< md) */}
       <div className="fixed bottom-4 right-4 z-40 block md:hidden">
         <button
-          onClick={handleOpenAddModal}
+          onClick={() => handleOpenAddModal()}
           className="flex items-center gap-2 bg-gradient-to-r from-pegadaian-600 to-pegadaian-700 hover:from-pegadaian-700 hover:to-pegadaian-800 text-white font-extrabold px-4 py-3 rounded-full shadow-2xl transition-all active:scale-95 border-2 border-white ring-4 ring-pegadaian-600/20"
         >
           <span className="text-xl leading-none">+</span>
@@ -185,10 +188,12 @@ export default function DashboardPage() {
         onClose={() => {
           setIsFormOpen(false);
           setEditingReport(null);
+          setDefaultFormDate(undefined);
         }}
         onSave={handleSaveReport}
         initialData={editingReport}
         defaultCategory={defaultFormCategory}
+        defaultDate={defaultFormDate}
       />
 
       <ExportModal
