@@ -16,8 +16,7 @@
    - [5.5 Engine Export Multi-Sheet Excel](#55-engine-export-multi-sheet-excel)
 6. [Skema Data & Type Definitions](#6-skema-data--type-definitions)
 7. [Dokumentasi Service Layer](#7-dokumentasi-service-layer)
-8. [Panduan Instalasi & Deployment](#8-panduan-instalasi--deployment)
-9. [Changelog & Pemeliharaan](#9-changelog--pemeliharaan)
+8. [Changelog & Pemeliharaan](#8-changelog--pemeliharaan)
 
 ---
 
@@ -145,7 +144,7 @@ Divisi Operasional TI (OITI) PT. Pegadaian membutuhkan sistem pelaporan pekerjaa
   * **Offline/Local Mode**: Menggunakan `localStorage` (`pegadaian_current_user_v1`) sehingga aplikasi tetap 100% fungsional saat demo atau tanpa internet.
 
 ### 5.2 Running Text Banner Dinamis
-* **Lokasi**: Terpasang tetap di bawah bar navigasi utama ([Header.tsx]).
+* **Lokasi**: Terpasang tetap di bawah bar navigasi utama ([Header.tsx](./src/components/Header.tsx)).
 * **Konten Berjalan**:
   1. *Keamanan Sesi*: Pengingat proteksi Auto-Logout 30 menit.
   2. *Personil Aktif*: Sapaan dinamis mencantumkan `Nama Lengkap`, `Role`, dan `Kantor Wilayah / Unit Kerja`.
@@ -186,7 +185,7 @@ Divisi Operasional TI (OITI) PT. Pegadaian membutuhkan sistem pelaporan pekerjaa
 
 ## 6. SKEMA DATA & TYPE DEFINITIONS
 
-### 6.1 `DailyReport` ([src/types/report.ts])
+### 6.1 `DailyReport` ([src/types/report.ts](./src/types/report.ts))
 ```typescript
 export interface DailyReport {
   id?: string;
@@ -209,7 +208,7 @@ export interface DailyReport {
 }
 ```
 
-### 6.2 `UserProfile` ([src/types/user.ts])
+### 6.2 `UserProfile` ([src/types/user.ts](./src/types/user.ts))
 ```typescript
 export interface UserProfile {
   uid: string;
@@ -228,7 +227,7 @@ export interface UserProfile {
 
 ## 7. DOKUMENTASI SERVICE LAYER
 
-### 7.1 `authService` ([src/services/authService.ts])
+### 7.1 `authService` ([src/services/authService.ts](./src/services/authService.ts))
 * `register(payload)`: Membuat akun baru di Firebase Auth dan dokumen Firestore `user-reports` (atau `localStorage`).
 * `login(payload)`: Masuk menggunakan email atau nama lengkap.
 * `getUserProfile(uid)`: Mengambil profil lengkap pengguna.
@@ -237,13 +236,13 @@ export interface UserProfile {
 * `adminUpdateRole(uid, newRole)`: Mengubah peran akun secara instan.
 * `logout()`: Membersihkan sesi Firebase dan menghapus timestamp aktivitas lokal.
 
-### 7.2 `reportsService` ([src/services/reportsService.ts])
+### 7.2 `reportsService` ([src/services/reportsService.ts](./src/services/reportsService.ts))
 * `getAllReports(uid?, name?)`: Mengambil daftar laporan (jika user non-admin, hanya mengambil laporan miliknya).
 * `createReport(reportData, uid?)`: Menyimpan laporan baru ke Firestore/LocalStorage.
 * `updateReport(id, reportData, uid?)`: Memperbarui isi laporan yang sudah ada.
 * `deleteReport(id, uid?)`: Menghapus laporan.
 
-### 7.3 `excelService` ([src/services/excelService.ts])
+### 7.3 `excelService` ([src/services/excelService.ts](./src/services/excelService.ts))
 * `exportReportsToExcel(reports, cycleName, officerName?)`: Mengonversi daftar data array laporan menjadi workbook Excel `.xlsx` multi-sheet berformat resmi PT. Pegadaian.
 
 ---
@@ -254,7 +253,6 @@ export interface UserProfile {
 * ✨ **Penambahan Keamanan Sesi**: Implementasi background *Inactivity Auto-Logout* 30 menit tanpa dialog pop-up yang mengganggu.
 * 📢 **Running Text Header Banner**: Penambahan komponen teks berjalan interaktif dengan fitur *Pause on Hover* yang menampilkan info sesi aktif dan identitas personil.
 * 🔄 **Multi-Tab Sync**: Sinkronisasi aktivitas sesi antar-tab browser secara real-time.
-* 📚 **Dokumentasi Lengkap**: Pembuatan `DOCUMENTATION.md` dan pembaruan `README.md`.
 
 ---
 
