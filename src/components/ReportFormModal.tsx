@@ -53,7 +53,13 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
   defaultDate
 }) => {
   const { userProfile } = useAuth();
-  const getTodayString = () => new Date().toISOString().split('T')[0];
+  const getTodayString = () => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
 
   const defaultPic = userProfile
     ? (userProfile.unitKerja || `${userProfile.kanwil} - ${userProfile.displayName}`)
@@ -316,7 +322,7 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
 
           {/* Metode Penanganan */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+            <label className="text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
               <span>Metode Penanganan <span className="text-red-500">*</span></span>
               <span className="text-[11px] text-slate-400 font-medium">Guide / Visit / Remote</span>
             </label>

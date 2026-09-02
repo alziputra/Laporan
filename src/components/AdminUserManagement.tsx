@@ -353,7 +353,12 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
 
   // 4. Real-time KPI Stats in Tab 2 dynamically synced
   const reportStats = useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const todayStr = `${y}-${m}-${d}`;
+
     const sourceReports = baseFilteredReports;
     const total = sourceReports.length;
     const todayReports = sourceReports.filter((r) => r.tanggalPengerjaan === todayStr);
@@ -1155,7 +1160,11 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                     <th className="py-3.5 px-4 min-w-[140px] border-r border-slate-700/60">PIC Support</th>
                     <th className="py-3.5 px-4 min-w-[140px] border-r border-slate-700/60">Unit Kerja</th>
                     <th className="py-3.5 px-4 min-w-[120px] border-r border-slate-700/60">Nama User</th>
+                    {selectedReportCategory === 'Semua' && (
+                      <th className="py-3.5 px-3 min-w-[135px] border-r border-slate-700/60 text-center">Kategori</th>
+                    )}
                     <th className="py-3.5 px-4 min-w-[220px] border-r border-slate-700/60">Deskripsi Permohonan</th>
+                    <th className="py-3.5 px-3 min-w-[95px] border-r border-slate-700/60 text-center">Metode</th>
                     <th className="py-3.5 px-4 min-w-[220px] border-r border-slate-700/60">Solusi Issue</th>
                     <th className="py-3.5 px-3 min-w-[70px] border-r border-slate-700/60 text-center">Mulai</th>
                     <th className="py-3.5 px-3 min-w-[70px] border-r border-slate-700/60 text-center">Selesai</th>
@@ -1167,14 +1176,14 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                 <tbody className="divide-y divide-slate-100 bg-white">
                   {loadingReports ? (
                     <tr>
-                      <td colSpan={12} className="py-16 text-center text-slate-500">
+                      <td colSpan={selectedReportCategory === 'Semua' ? 14 : 13} className="py-16 text-center text-slate-500">
                         <RefreshCw className="w-7 h-7 animate-spin text-pegadaian-600 mx-auto mb-2" />
                         <p className="font-bold text-xs">Memuat data seluruh laporan IT...</p>
                       </td>
                     </tr>
                   ) : paginatedReports.length === 0 ? (
                     <tr>
-                      <td colSpan={12} className="py-16 text-center text-slate-500">
+                      <td colSpan={selectedReportCategory === 'Semua' ? 14 : 13} className="py-16 text-center text-slate-500">
                         <FileSpreadsheet className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                         <p className="font-bold text-slate-700 text-sm">Tidak ada laporan ditemukan</p>
                         <p className="text-xs text-slate-400 mt-1">Coba sesuaikan filter petugas, kanwil, atau kategori</p>
@@ -1213,8 +1222,26 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                           <td className="py-3.5 px-4 font-bold text-slate-900 border-r border-slate-100">
                             <p className="line-clamp-2">{item.nama}</p>
                           </td>
+                          {selectedReportCategory === 'Semua' && (
+                            <td className="py-3.5 px-3 text-center border-r border-slate-100 whitespace-nowrap">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                {item.category}
+                              </span>
+                            </td>
+                          )}
                           <td className="py-3.5 px-4 text-slate-700 border-r border-slate-100">
                             <p className="line-clamp-2 leading-relaxed">{item.deskripsiPermohonan}</p>
+                          </td>
+                          <td className="py-3.5 px-3 text-center border-r border-slate-100 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-extrabold border ${
+                              item.metodePenanganan === 'Visit'
+                                ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                : item.metodePenanganan === 'Remote'
+                                ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                : 'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}>
+                              {item.metodePenanganan || 'Guide'}
+                            </span>
                           </td>
                           <td className="py-3.5 px-4 text-slate-800 font-medium border-r border-slate-100">
                             <p className="line-clamp-2 leading-relaxed">{item.solusiIssue}</p>

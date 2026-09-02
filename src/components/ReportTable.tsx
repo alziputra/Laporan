@@ -80,16 +80,43 @@ export const ReportTable: React.FC<ReportTableProps> = ({
     setCurrentPage(1);
   }, [searchTerm, selectedCategory, dateFilter, itemsPerPage]);
 
-  // Real-time KPI Stats calculation
+  // Filtered dataset (Search + Category + Date Filter)
+  const filteredReports = useMemo(() => {
+    return reports.filter((item) => {
+      const q = searchTerm.toLowerCase().trim();
+      const matchesSearch = 
+        !q ||
+        (item.nama && item.nama.toLowerCase().includes(q)) ||
+        (item.unitKerja && item.unitKerja.toLowerCase().includes(q)) ||
+        (item.deskripsiPermohonan && item.deskripsiPermohonan.toLowerCase().includes(q)) ||
+        (item.solusiIssue && item.solusiIssue.toLowerCase().includes(q)) ||
+        (item.metodePenanganan && item.metodePenanganan.toLowerCase().includes(q)) ||
+        (item.picSupport && item.picSupport.toLowerCase().includes(q));
+
+      const matchesCategory = selectedCategory === 'Semua' || item.category === selectedCategory;
+      const matchesDate = !dateFilter || item.tanggalPengerjaan === dateFilter;
+
+      return matchesSearch && matchesCategory && matchesDate;
+    });
+  }, [reports, searchTerm, selectedCategory, dateFilter]);
+
+  // Real-time Dynamic KPI Stats calculation
   const stats = useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const total = reports.length;
-    const todayReports = reports.filter(r => r.tanggalPengerjaan === todayStr);
+    // 1. Local Date String (YYYY-MM-DD) to prevent UTC offset mismatch
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const todayStr = `${y}-${m}-${d}`;
+
+    const targetList = filteredReports;
+    const total = targetList.length;
+    const todayReports = targetList.filter(r => r.tanggalPengerjaan === todayStr);
     
     // Average SLA in minutes
     let totalMinutes = 0;
     let validSLACount = 0;
-    reports.forEach(r => {
+    targetList.forEach(r => {
       if (r.waktuMulai && r.waktuSelesai) {
         const [sh, sm] = r.waktuMulai.split(':').map(Number);
         const [eh, em] = r.waktuSelesai.split(':').map(Number);
@@ -112,7 +139,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({
       avgSlaFormatted,
       avgMinutes
     };
-  }, [reports]);
+  }, [filteredReports]);
 
   // Category counts
   const categoryCounts = useMemo(() => {
@@ -141,27 +168,22 @@ export const ReportTable: React.FC<ReportTableProps> = ({
     let endDate: Date;
 
     if (missingDaysCycle === 'cycle21') {
-      // 21 of last month up to today (or 20th of this month, whichever is earlier)
       startDate = new Date(y, m - 1, 21);
       const cutOffEnd = new Date(y, m, 20);
       endDate = today < cutOffEnd ? today : cutOffEnd;
     } else if (missingDaysCycle === 'cycle13') {
-      // 13 of last month up to today (or 12th of this month, whichever is earlier)
       startDate = new Date(y, m - 1, 13);
       const cutOffEnd = new Date(y, m, 12);
       endDate = today < cutOffEnd ? today : cutOffEnd;
     } else if (missingDaysCycle === 'month') {
-      // 1st of current month up to today
       startDate = new Date(y, m, 1);
       endDate = today;
     } else {
-      // Last 30 days up to today
       startDate = new Date(today);
       startDate.setDate(startDate.getDate() - 30);
       endDate = today;
     }
 
-    // Set of dates that have at least 1 report
     const reportedDatesSet = new Set(reports.map(r => r.tanggalPengerjaan));
 
     const curr = new Date(startDate);
@@ -169,8 +191,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({
     const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
     while (curr <= endDate) {
-      const dayOfWeek = curr.getDay(); // 0: Sunday, 1: Monday, ..., 5: Friday, 6: Saturday
-      // Check if workday (Monday to Friday)
+      const dayOfWeek = curr.getDay();
       if (dayOfWeek >= 1 && dayOfWeek <= 5) {
         const yearStr = curr.getFullYear();
         const monthStr = String(curr.getMonth() + 1).padStart(2, '0');
@@ -188,28 +209,8 @@ export const ReportTable: React.FC<ReportTableProps> = ({
       curr.setDate(curr.getDate() + 1);
     }
 
-    // Return sorted descending (newest missing day first)
     return result.reverse();
   }, [reports, missingDaysCycle]);
-
-  // Filtered dataset
-  const filteredReports = useMemo(() => {
-    return reports.filter((item) => {
-      const q = searchTerm.toLowerCase().trim();
-      const matchesSearch = 
-        !q ||
-        (item.nama && item.nama.toLowerCase().includes(q)) ||
-        (item.unitKerja && item.unitKerja.toLowerCase().includes(q)) ||
-        (item.deskripsiPermohonan && item.deskripsiPermohonan.toLowerCase().includes(q)) ||
-        (item.solusiIssue && item.solusiIssue.toLowerCase().includes(q)) ||
-        (item.picSupport && item.picSupport.toLowerCase().includes(q));
-
-      const matchesCategory = selectedCategory === 'Semua' || item.category === selectedCategory;
-      const matchesDate = !dateFilter || item.tanggalPengerjaan === dateFilter;
-
-      return matchesSearch && matchesCategory && matchesDate;
-    });
-  }, [reports, searchTerm, selectedCategory, dateFilter]);
 
   // Pagination Calculations
   const totalItems = filteredReports.length;
@@ -295,7 +296,11 @@ export const ReportTable: React.FC<ReportTableProps> = ({
             </h3>
             <p className="text-[10px] sm:text-[11px] text-emerald-600 font-bold mt-0.5 flex items-center gap-1 truncate">
               <Sparkles className="w-3 h-3 shrink-0" />
-              <span>Semua Laporan Tercatat</span>
+              <span>
+                {selectedCategory !== 'Semua' 
+                  ? `Kategori: ${selectedCategory}` 
+                  : (dateFilter || searchTerm ? 'Sesuai Filter Aktif' : 'Semua Laporan Tercatat')}
+              </span>
             </p>
           </div>
           <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-pegadaian-50 text-pegadaian-700 flex items-center justify-center border border-pegadaian-100 shrink-0 ml-2">
@@ -558,7 +563,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({
           </div>
         </div>
 
-        {/* 4. Responsive Table View (Without Metode column) */}
+        {/* 4. Responsive Table View */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs align-middle border-collapse">
             <thead>
@@ -569,7 +574,11 @@ export const ReportTable: React.FC<ReportTableProps> = ({
                 <th className="py-3.5 px-4 min-w-[130px] border-r border-slate-700/60">PIC Support</th>
                 <th className="py-3.5 px-4 min-w-[140px] border-r border-slate-700/60">Unit Kerja</th>
                 <th className="py-3.5 px-4 min-w-[130px] border-r border-slate-700/60">Nama User</th>
+                {selectedCategory === 'Semua' && (
+                  <th className="py-3.5 px-3 min-w-[135px] border-r border-slate-700/60 text-center">Kategori</th>
+                )}
                 <th className="py-3.5 px-4 min-w-[240px] border-r border-slate-700/60">Deskripsi Permohonan</th>
+                <th className="py-3.5 px-3 min-w-[95px] border-r border-slate-700/60 text-center">Metode</th>
                 <th className="py-3.5 px-4 min-w-[240px] border-r border-slate-700/60">Solusi Issue</th>
                 <th className="py-3.5 px-3 min-w-[70px] border-r border-slate-700/60 text-center">Mulai</th>
                 <th className="py-3.5 px-3 min-w-[70px] border-r border-slate-700/60 text-center">Selesai</th>
@@ -581,7 +590,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({
             <tbody className="divide-y divide-slate-100 bg-white">
               {paginatedReports.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="py-16 text-center text-slate-500">
+                  <td colSpan={selectedCategory === 'Semua' ? 14 : 13} className="py-16 text-center text-slate-500">
                     <div className="flex flex-col items-center justify-center space-y-2.5">
                       <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center">
                         <AlertCircle className="w-6 h-6" />
@@ -646,9 +655,31 @@ export const ReportTable: React.FC<ReportTableProps> = ({
                         <p className="line-clamp-2">{item.nama}</p>
                       </td>
 
+                      {/* Kategori (Only shown when viewing 'Semua') */}
+                      {selectedCategory === 'Semua' && (
+                        <td className="py-3.5 px-3 text-center border-r border-slate-100 whitespace-nowrap">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            {item.category}
+                          </span>
+                        </td>
+                      )}
+
                       {/* Deskripsi */}
                       <td className="py-3.5 px-4 text-slate-700 border-r border-slate-100">
                         <p className="line-clamp-2 leading-relaxed">{item.deskripsiPermohonan}</p>
+                      </td>
+
+                      {/* Metode Penanganan */}
+                      <td className="py-3.5 px-3 text-center border-r border-slate-100 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-extrabold border ${
+                          item.metodePenanganan === 'Visit'
+                            ? 'bg-blue-50 text-blue-700 border-blue-200'
+                            : item.metodePenanganan === 'Remote'
+                            ? 'bg-purple-50 text-purple-700 border-purple-200'
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                        }`}>
+                          {item.metodePenanganan || 'Guide'}
+                        </span>
                       </td>
 
                       {/* Solusi Issue */}
@@ -853,7 +884,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({
             <div className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
               {/* Cycle Filter Switcher */}
               <div>
-                <label className="block text-xs font-extrabold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                <label className="text-xs font-extrabold text-slate-700 mb-1.5 flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-amber-600" />
                   <span>Periode Pengecekan:</span>
                 </label>

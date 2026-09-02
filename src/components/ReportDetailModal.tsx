@@ -91,7 +91,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
           {/* Body */}
           <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
             {/* Grid Information Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200/80 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200/80 text-xs">
               <div>
                 <span className="text-slate-400 font-bold block text-[10px] uppercase">Hari & Tanggal</span>
                 <span className="font-extrabold text-slate-800 mt-0.5 block">{dayName}, {formattedDate}</span>
@@ -101,8 +101,20 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                 <span className="font-mono font-bold text-slate-800 mt-0.5 block">{report.waktuMulai} - {report.waktuSelesai}</span>
               </div>
               <div>
+                <span className="text-slate-400 font-bold block text-[10px] uppercase">Metode</span>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-extrabold mt-0.5 border ${
+                  report.metodePenanganan === 'Visit'
+                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                    : report.metodePenanganan === 'Remote'
+                    ? 'bg-purple-50 text-purple-700 border-purple-200'
+                    : 'bg-amber-50 text-amber-700 border-amber-200'
+                }`}>
+                  {report.metodePenanganan || 'Guide'}
+                </span>
+              </div>
+              <div>
                 <span className="text-slate-400 font-bold block text-[10px] uppercase">PIC Support</span>
-                <span className="font-extrabold text-emerald-800 mt-0.5 block">{report.picSupport}</span>
+                <span className="font-extrabold text-emerald-800 mt-0.5 block truncate">{report.picSupport}</span>
               </div>
             </div>
 
