@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Database, Clock, User, LogOut, LogIn, ShieldCheck } from 'lucide-react';
 import { isFirebaseConfigured } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
+import { RunningTextBanner } from '@/components/RunningTextBanner';
 
 interface HeaderProps {
   onOpenAuthModal?: (tab?: 'login' | 'register') => void;
@@ -154,6 +155,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuthModal, onOpenAdminPane
           )}
         </div>
       </div>
+
+      {/* Running Text Banner Below Main Header */}
+      <RunningTextBanner />
     </header>
   );
 };

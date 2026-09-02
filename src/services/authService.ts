@@ -398,5 +398,8 @@ export const authService = {
       }
     }
     setLocalCurrentUser(null);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('pegadaian_last_activity_v1');
+    }
   }
 };

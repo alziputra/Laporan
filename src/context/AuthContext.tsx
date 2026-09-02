@@ -20,6 +20,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000; // 30 menit
+const LAST_ACTIVITY_KEY = 'pegadaian_last_activity_v1';
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,6 +60,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (unsubscribe) unsubscribe();
     };
   }, []);
+
+  // Inactivity Auto-Logout (30 Menit Silent Background Listener)
+  useEffect(() => {
+    if (!userProfile) return;
+
+    const updateActivity = () => {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString());
+      }
+    };
+
+    updateActivity();
+
+    const activityEvents = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+    let lastRecorded = Date.now();
+
+    const handleUserActivity = () => {
+      const now = Date.now();
+      if (now - lastRecorded > 5000) {
+        lastRecorded = now;
+        updateActivity();
+      }
+    };
+
+    activityEvents.forEach((evt) => {
+      window.addEventListener(evt, handleUserActivity, { passive: true });
+    });
+
+    const checkInterval = setInterval(async () => {
+      if (!userProfile) return;
+
+      const lastActivityStr = localStorage.getItem(LAST_ACTIVITY_KEY);
+      const lastActivity = lastActivityStr ? parseInt(lastActivityStr, 10) : Date.now();
+      const elapsed = Date.now() - lastActivity;
+
+      if (elapsed >= INACTIVITY_TIMEOUT_MS) {
+        console.warn('Session expired due to 30 minutes of inactivity. Logging out...');
+        await logout();
+      }
+    }, 10000);
+
+    return () => {
+      activityEvents.forEach((evt) => {
+        window.removeEventListener(evt, handleUserActivity);
+      });
+      clearInterval(checkInterval);
+    };
+  }, [userProfile]);
 
   const refreshUserProfile = async () => {
     if (userProfile?.uid) {

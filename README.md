@@ -1,12 +1,12 @@
 # 🏢 Pegadaian IT Support Daily Reporting & Executive Dashboard
 
 <p align="left">
-  <img src="https://img.shields.io/badge/NEXT.JS%2016-000000?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js" />
+  <img src="https://img.shields.io/badge/NEXT.JS%2014-000000?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js" />
   <img src="https://img.shields.io/badge/TYPESCRIPT%205-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/REACT%2019-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React" />
-  <img src="https://img.shields.io/badge/FIREBASE%2012-FFCA28?style=for-the-badge&logo=firebase&logoColor=black" alt="Firebase" />
-  <img src="https://img.shields.io/badge/TAILWIND%20CSS%204-38B2AC?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="Tailwind CSS" />
-  <img src="https://img.shields.io/badge/EXCELJS-1E7145?style=for-the-badge&logo=microsoftexcel&logoColor=white" alt="ExcelJS" />
+  <img src="https://img.shields.io/badge/REACT%2018-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React" />
+  <img src="https://img.shields.io/badge/FIREBASE%2010-FFCA28?style=for-the-badge&logo=firebase&logoColor=black" alt="Firebase" />
+  <img src="https://img.shields.io/badge/TAILWIND%20CSS%203-38B2AC?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="Tailwind CSS" />
+  <img src="https://img.shields.io/badge/XLSX-1E7145?style=for-the-badge&logo=microsoftexcel&logoColor=white" alt="XLSX" />
 </p>
 
 Aplikasi Web Pelaporan Pekerjaan Harian & Control Center Monitoring Nasional untuk **Desktop Support PT. Pegadaian**.
@@ -24,7 +24,7 @@ Developed with ❤️ by **Alzi Rahmana Putra** © 2026
 | ![Admin Statistik & Kinerja SLA](./public/admin-1.jpeg) | ![Admin Monitoring Seluruh Laporan](./public/admin-2.jpeg) |
 
 ### 💻 Halaman Desktop Support (`/`)
-| 📝 Tabel Pekerjaan Harian | ☑️Tambah laporan baru |
+| 📝 Tabel Pekerjaan Harian | ☑️ Tambah Laporan Baru |
 | :---: | :---: |
 | ![User Pelaporan Harian](./public/user-1.jpeg) | ![User tambah Laporan](./public/user-2.jpeg) |
 
@@ -66,7 +66,20 @@ Halaman kerja harian personil IT Support di lapangan:
 
 ---
 
-### 3. 📊 Export Multi-Sheet Excel Resmi PT. Pegadaian
+### 3. 🔒 Keamanan Sesi & Running Text Banner
+* **⏱️ Auto-Logout Inactivity 30 Menit**:
+  * Pemantauan aktivitas pengguna (*mouse movement, keyboard, click, scroll, touch*) di latar belakang secara hening (*silent*).
+  * Akun otomatis logout jika tidak ada aktivitas selama 30 menit demi keamanan integritas data laporan.
+* **🔄 Multi-Tab Session Synchronization**:
+  * Aktivitas di salah satu tab browser otomatis menyinkronkan dan memperpanjang masa aktif sesi di seluruh tab lainnya.
+* **📢 Running Text Banner (Marquee Header Bar)**:
+  * Terletak tepat di bawah bar navigasi utama.
+  * Menampilkan informasi keamanan sesi aktif, identitas personil yang sedang bertugas, dan tips operasional secara real-time.
+  * Dilengkapi fitur **Pause on Hover** untuk kenyamanan membaca.
+
+---
+
+### 4. 📊 Export Multi-Sheet Excel Resmi PT. Pegadaian
 * **Pilihan Cepat Siklus Cut-Off Laporan**:
   * `[ 21 Lalu - 20 Ini ]` *(Siklus Standar Pegadaian)*
   * `[ 13 Lalu - 12 Ini ]`
@@ -83,11 +96,11 @@ Halaman kerja harian personil IT Support di lapangan:
 
 ---
 
-### 4. 🔐 Autentikasi & Role-Based Access Control (RBAC)
+### 5. 🔐 Autentikasi & Role-Based Access Control (RBAC)
 * **Silent Role Guard**:
   * Akun dengan peran **Admin** yang login di `/` otomatis diarahkan (*silent redirect*) ke `/admin`.
   * Akun non-admin yang mencoba mengakses `/admin` otomatis dialihkan ke `/` tanpa memunculkan layar error.
-* Sinkronisasi data real-time berbasis Firebase Firestore dengan *fallback* aman ke LocalStorage saat offline.
+* Sinkronisasi data real-time berbasis Firebase Firestore dengan *fallback* aman ke LocalStorage saat mode offline / tanpa koneksi cloud.
 
 ---
 
@@ -107,12 +120,12 @@ npm install
 ### 3. Konfigurasi Environment Variable (`.env`)
 Buat file `.env` di root direktori project:
 ```env
-NEXT_PUBLIC_FIREBASE_API_KEY=Xxxxxx...
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=Xxxxxx...
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=Xxxxxx...
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=Xxxxxx...
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=Xxxxxx...
-NEXT_PUBLIC_FIREBASE_APP_ID=Xxxxxx...
+NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key-here
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-auth-domain-here
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-storage-bucket
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-messaging-sender-id
+NEXT_PUBLIC_FIREBASE_APP_ID=your-app-id
 ```
 
 ### 4. Jalankan Development Server
@@ -126,6 +139,11 @@ Buka browser di:
 
 ---
 
+## 📚 Dokumentasi Koding & PRD
+Dokumentasi teknis lengkap dan spesifikasi produk (PRD) dapat dilihat pada file:
+👉 **[DOCUMENTATION.md](./DOCUMENTATION.md)**
+
+---
 
 ## 📄 Lisensi & Kontribusi
 
