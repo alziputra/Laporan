@@ -194,6 +194,7 @@ export default function DashboardPage() {
         initialData={editingReport}
         defaultCategory={defaultFormCategory}
         defaultDate={defaultFormDate}
+        existingReports={reports}
       />
 
       <ExportModal
