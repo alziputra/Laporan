@@ -28,7 +28,8 @@ import {
   X,
   CalendarX2,
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  ChevronDown
 } from 'lucide-react';
 import { DailyReport } from '@/types/report';
 import { calculateSLA, getDayName, formatDateFormatted } from '@/utils/exportUtils';
@@ -67,20 +68,95 @@ export const ReportTable: React.FC<ReportTableProps> = ({
   onOpenExportModal
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [dateFilter, setDateFilter] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [activePreset, setActivePreset] = useState<'cycle21' | 'cycle13' | 'month' | 'today' | '7days' | 'all' | 'custom'>('all');
+  const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
+  const dateDropdownRef = useRef<HTMLDivElement>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const dateInputRef = useRef<HTMLInputElement>(null);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dateDropdownRef.current && !dateDropdownRef.current.contains(event.target as Node)) {
+        setIsDateDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Format Date to YYYY-MM-DD
+  const formatDateISO = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Handle Quick Presets (matches Export Laporan cycles)
+  const handlePreset = (type: 'cycle21' | 'cycle13' | 'month' | 'today' | '7days' | 'all') => {
+    setActivePreset(type);
+    const curr = new Date();
+    const y = curr.getFullYear();
+    const m = curr.getMonth(); // 0-indexed
+    const today = formatDateISO(curr);
+
+    if (type === 'cycle21') {
+      const start = new Date(y, m - 1, 21);
+      const end = new Date(y, m, 20);
+      setStartDate(formatDateISO(start));
+      setEndDate(formatDateISO(end));
+    } else if (type === 'cycle13') {
+      const start = new Date(y, m - 1, 13);
+      const end = new Date(y, m, 12);
+      setStartDate(formatDateISO(start));
+      setEndDate(formatDateISO(end));
+    } else if (type === 'month') {
+      const start = new Date(y, m, 1);
+      const end = new Date(y, m + 1, 0);
+      setStartDate(formatDateISO(start));
+      setEndDate(formatDateISO(end));
+    } else if (type === 'today') {
+      setStartDate(today);
+      setEndDate(today);
+    } else if (type === '7days') {
+      const past = new Date(curr);
+      past.setDate(past.getDate() - 7);
+      setStartDate(formatDateISO(past));
+      setEndDate(today);
+    } else if (type === 'all') {
+      setStartDate('');
+      setEndDate('');
+    }
+  };
+
+  // Get User-friendly Preset or Date Range Label
+  const getPresetLabel = () => {
+    if (activePreset === 'cycle13') return 'Siklus 13-12';
+    if (activePreset === 'cycle21') return 'Siklus 21-20';
+    if (activePreset === 'month') return 'Bulan Ini';
+    if (activePreset === 'today') return 'Hari Ini';
+    if (activePreset === '7days') return '7 Hari Terakhir';
+    if (startDate && endDate) {
+      if (startDate === endDate) return formatDateFormatted(startDate);
+      return `${formatDateFormatted(startDate)} - ${formatDateFormatted(endDate)}`;
+    }
+    if (startDate) return `Mulai ${formatDateFormatted(startDate)}`;
+    if (endDate) return `Sampai ${formatDateFormatted(endDate)}`;
+    return 'Semua Periode';
+  };
+
   // Reset to page 1 whenever filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedCategory, dateFilter, itemsPerPage]);
+  }, [searchTerm, selectedCategory, startDate, endDate, itemsPerPage]);
 
-  // Filtered dataset (Search + Category + Date Filter)
+  // Filtered dataset (Search + Category + Date Range Filter)
   const filteredReports = useMemo(() => {
     return reports.filter((item) => {
       const q = searchTerm.toLowerCase().trim();
@@ -94,11 +170,19 @@ export const ReportTable: React.FC<ReportTableProps> = ({
         (item.picSupport && item.picSupport.toLowerCase().includes(q));
 
       const matchesCategory = selectedCategory === 'Semua' || item.category === selectedCategory;
-      const matchesDate = !dateFilter || item.tanggalPengerjaan === dateFilter;
+
+      let matchesDate = true;
+      if (startDate && endDate) {
+        matchesDate = item.tanggalPengerjaan >= startDate && item.tanggalPengerjaan <= endDate;
+      } else if (startDate) {
+        matchesDate = item.tanggalPengerjaan >= startDate;
+      } else if (endDate) {
+        matchesDate = item.tanggalPengerjaan <= endDate;
+      }
 
       return matchesSearch && matchesCategory && matchesDate;
     });
-  }, [reports, searchTerm, selectedCategory, dateFilter]);
+  }, [reports, searchTerm, selectedCategory, startDate, endDate]);
 
   // Real-time Dynamic KPI Stats calculation
   const stats = useMemo(() => {
@@ -164,33 +248,33 @@ export const ReportTable: React.FC<ReportTableProps> = ({
     const y = today.getFullYear();
     const m = today.getMonth(); // 0-indexed
 
-    let startDate: Date;
-    let endDate: Date;
+    let cycleStart: Date;
+    let cycleEnd: Date;
 
     if (missingDaysCycle === 'cycle21') {
-      startDate = new Date(y, m - 1, 21);
+      cycleStart = new Date(y, m - 1, 21);
       const cutOffEnd = new Date(y, m, 20);
-      endDate = today < cutOffEnd ? today : cutOffEnd;
+      cycleEnd = today < cutOffEnd ? today : cutOffEnd;
     } else if (missingDaysCycle === 'cycle13') {
-      startDate = new Date(y, m - 1, 13);
+      cycleStart = new Date(y, m - 1, 13);
       const cutOffEnd = new Date(y, m, 12);
-      endDate = today < cutOffEnd ? today : cutOffEnd;
+      cycleEnd = today < cutOffEnd ? today : cutOffEnd;
     } else if (missingDaysCycle === 'month') {
-      startDate = new Date(y, m, 1);
-      endDate = today;
+      cycleStart = new Date(y, m, 1);
+      cycleEnd = today;
     } else {
-      startDate = new Date(today);
-      startDate.setDate(startDate.getDate() - 30);
-      endDate = today;
+      cycleStart = new Date(today);
+      cycleStart.setDate(cycleStart.getDate() - 30);
+      cycleEnd = today;
     }
 
     const reportedDatesSet = new Set(reports.map(r => r.tanggalPengerjaan));
 
-    const curr = new Date(startDate);
+    const curr = new Date(cycleStart);
     const indonesianDays = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
     const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
-    while (curr <= endDate) {
+    while (curr <= cycleEnd) {
       const dayOfWeek = curr.getDay();
       if (dayOfWeek >= 1 && dayOfWeek <= 5) {
         const yearStr = curr.getFullYear();
@@ -287,25 +371,211 @@ export const ReportTable: React.FC<ReportTableProps> = ({
     <div className="space-y-4 sm:space-y-5">
       {/* 1. KPI / Stats Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
-        {/* Card 1: Total Tiket */}
-        <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between transition-all">
-          <div className="min-w-0">
-            <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">Total Laporan</p>
-            <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-800 mt-0.5 sm:mt-1">
-              {stats.total.toLocaleString('id-ID')}
-            </h3>
-            <p className="text-[10px] sm:text-[11px] text-emerald-600 font-bold mt-0.5 flex items-center gap-1 truncate">
-              <Sparkles className="w-3 h-3 shrink-0" />
-              <span>
-                {selectedCategory !== 'Semua' 
-                  ? `Kategori: ${selectedCategory}` 
-                  : (dateFilter || searchTerm ? 'Sesuai Filter Aktif' : 'Semua Laporan Tercatat')}
-              </span>
+        {/* Card 1: Total Laporan dengan Pilihan Tanggal seperti Export Laporan */}
+        <div className={`relative bg-white p-3.5 sm:p-5 rounded-2xl border transition-all ${
+          activePreset !== 'all' || startDate || endDate
+            ? 'border-emerald-300 ring-2 ring-emerald-400/20 shadow-md'
+            : 'border-slate-200/80 shadow-xs hover:border-slate-300'
+        }`}>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">
+              Total Laporan
             </p>
+            {/* Tombol Pilihan Tanggal seperti Export Laporan */}
+            <button
+              type="button"
+              onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[10px] sm:text-[11px] font-extrabold border transition-all cursor-pointer active:scale-95 ${
+                activePreset !== 'all' || startDate || endDate
+                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200/90'
+              }`}
+              title="Klik untuk memilih rentang tanggal seperti export laporan"
+            >
+              <Calendar className="w-3 h-3 shrink-0" />
+              <span className="truncate max-w-[120px] sm:max-w-[150px]">{getPresetLabel()}</span>
+              <ChevronDown className={`w-3 h-3 shrink-0 transition-transform ${isDateDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
           </div>
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-pegadaian-50 text-pegadaian-700 flex items-center justify-center border border-pegadaian-100 shrink-0 ml-2">
-            <ClipboardList className="w-5 h-5 sm:w-6 sm:h-6" />
+
+          <div className="flex items-center justify-between mt-2">
+            <div className="min-w-0">
+              <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-800">
+                {stats.total.toLocaleString('id-ID')}
+              </h3>
+              <p className="text-[10px] sm:text-[11px] text-emerald-600 font-bold mt-0.5 flex items-center gap-1 truncate">
+                <Sparkles className="w-3 h-3 shrink-0" />
+                <span>
+                  {selectedCategory !== 'Semua' 
+                    ? `Kategori: ${selectedCategory}` 
+                    : (startDate || endDate) 
+                      ? (startDate && endDate ? `${formatDateFormatted(startDate)} s/d ${formatDateFormatted(endDate)}` : getPresetLabel())
+                      : (searchTerm ? 'Sesuai Pencarian' : 'Semua Laporan Tercatat')}
+                </span>
+              </p>
+            </div>
+            <div 
+              onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
+              className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-pegadaian-50 text-pegadaian-700 flex items-center justify-center border border-pegadaian-100 shrink-0 ml-2 cursor-pointer hover:bg-pegadaian-100 transition-colors"
+              title="Pilih Siklus / Rentang Tanggal"
+            >
+              <ClipboardList className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
           </div>
+
+          {/* Popup Dropdown Pilihan Tanggal Persis Seperti Export Laporan */}
+          {isDateDropdownOpen && (
+            <div 
+              ref={dateDropdownRef}
+              className="absolute left-0 right-0 sm:right-auto sm:w-80 top-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200/90 p-4 z-50 animate-in fade-in zoom-in-95 duration-150 text-slate-800"
+            >
+              <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center">
+                    <Calendar className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-slate-800">Filter Periode Laporan</h4>
+                    <p className="text-[10px] text-slate-400">Siklus cut-off resmi PT. Pegadaian</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsDateDropdownOpen(false)}
+                  className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* 1. Quick Presets (Siklus Cut-off) */}
+              <div className="mb-3">
+                <label className="flex items-center gap-1 text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">
+                  <Sparkles className="w-3 h-3 text-emerald-600" />
+                  <span>Pilihan Cepat Siklus:</span>
+                </label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => { handlePreset('cycle13'); setIsDateDropdownOpen(false); }}
+                    className={`py-2 px-2.5 rounded-xl text-xs font-black transition-all border text-left active:scale-95 cursor-pointer ${
+                      activePreset === 'cycle13'
+                        ? 'bg-pegadaian-700 text-white border-pegadaian-700 shadow-xs ring-2 ring-emerald-400/40'
+                        : 'bg-emerald-50/70 hover:bg-emerald-100 text-emerald-900 border-emerald-300/80'
+                    }`}
+                  >
+                    13 Lalu - 12 Ini
+                    <span className="block text-[9px] font-normal opacity-80">Siklus 13</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { handlePreset('cycle21'); setIsDateDropdownOpen(false); }}
+                    className={`py-2 px-2.5 rounded-xl text-xs font-black transition-all border text-left active:scale-95 cursor-pointer ${
+                      activePreset === 'cycle21'
+                        ? 'bg-pegadaian-700 text-white border-pegadaian-700 shadow-xs ring-2 ring-emerald-400/40'
+                        : 'bg-emerald-50/70 hover:bg-emerald-100 text-emerald-900 border-emerald-300/80'
+                    }`}
+                  >
+                    21 Lalu - 20 Ini
+                    <span className="block text-[9px] font-normal opacity-80">Siklus 21</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-3 gap-1.5 mt-1.5">
+                  <button
+                    type="button"
+                    onClick={() => { handlePreset('month'); setIsDateDropdownOpen(false); }}
+                    className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border transition-all text-center active:scale-95 cursor-pointer ${
+                      activePreset === 'month'
+                        ? 'bg-slate-800 text-white border-slate-800 font-extrabold'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    Bulan Ini
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { handlePreset('today'); setIsDateDropdownOpen(false); }}
+                    className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border transition-all text-center active:scale-95 cursor-pointer ${
+                      activePreset === 'today'
+                        ? 'bg-slate-800 text-white border-slate-800 font-extrabold'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    Hari Ini
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { handlePreset('7days'); setIsDateDropdownOpen(false); }}
+                    className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border transition-all text-center active:scale-95 cursor-pointer ${
+                      activePreset === '7days'
+                        ? 'bg-slate-800 text-white border-slate-800 font-extrabold'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    7 Hari
+                  </button>
+                </div>
+              </div>
+
+              {/* 2. Custom Date Range Pickers */}
+              <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 mb-3">
+                <label className="block text-[10px] font-bold text-slate-600 mb-1.5">
+                  Rentang Tanggal Kustom:
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-[9px] text-slate-400 font-medium block">Dari:</span>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => {
+                        setStartDate(e.target.value);
+                        setActivePreset('custom');
+                      }}
+                      className="w-full text-xs px-2 py-1.5 rounded-lg border border-slate-200 bg-white font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[9px] text-slate-400 font-medium block">Sampai:</span>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => {
+                        setEndDate(e.target.value);
+                        setActivePreset('custom');
+                      }}
+                      className="w-full text-xs px-2 py-1.5 rounded-lg border border-slate-200 bg-white font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Action Buttons */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handlePreset('all');
+                    setIsDateDropdownOpen(false);
+                  }}
+                  className="flex-1 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 border border-slate-200 rounded-xl transition-all text-center cursor-pointer"
+                >
+                  Semua Data
+                </button>
+                {(startDate || endDate || activePreset !== 'all') && (
+                  <button
+                    type="button"
+                    onClick={() => setIsDateDropdownOpen(false)}
+                    className="flex-1 py-2 text-xs font-extrabold text-white bg-pegadaian-700 hover:bg-pegadaian-800 rounded-xl shadow-xs transition-all text-center cursor-pointer"
+                  >
+                    Terapkan
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Card 2: Hari Ini */}
@@ -489,35 +759,24 @@ export const ReportTable: React.FC<ReportTableProps> = ({
             <div className="relative flex items-center">
               <button
                 type="button"
-                onClick={() => {
-                  try {
-                    const input = dateInputRef.current as any;
-                    if (input?.showPicker) {
-                      input.showPicker();
-                    } else {
-                      input?.focus();
-                    }
-                  } catch {
-                    dateInputRef.current?.focus();
-                  }
-                }}
+                onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-95 ${
-                  dateFilter 
+                  activePreset !== 'all' || startDate || endDate
                     ? 'bg-emerald-50 border-emerald-300 text-emerald-800 ring-1 ring-emerald-400/30' 
                     : 'bg-slate-50 hover:bg-slate-100/90 border-slate-200 text-slate-700'
                 }`}
-                title="Klik untuk memilih tanggal"
+                title="Klik untuk memilih periode tanggal seperti export laporan"
               >
-                <Calendar className={`w-3.5 h-3.5 shrink-0 ${dateFilter ? 'text-emerald-700' : 'text-slate-400'}`} />
+                <Calendar className={`w-3.5 h-3.5 shrink-0 ${activePreset !== 'all' || startDate || endDate ? 'text-emerald-700' : 'text-slate-400'}`} />
                 <span className="whitespace-nowrap">
-                  {dateFilter ? formatDateFormatted(dateFilter) : 'Filter Tanggal'}
+                  {getPresetLabel()}
                 </span>
-                {dateFilter && (
+                {(activePreset !== 'all' || startDate || endDate) && (
                   <span
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      setDateFilter('');
+                      handlePreset('all');
                     }}
                     className="ml-1 p-0.5 hover:bg-emerald-200/60 rounded-full text-emerald-800 transition-colors"
                     title="Hapus Filter Tanggal"
@@ -526,24 +785,15 @@ export const ReportTable: React.FC<ReportTableProps> = ({
                   </span>
                 )}
               </button>
-              {/* Native Date Input */}
-              <input
-                ref={dateInputRef}
-                type="date"
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="absolute inset-0 opacity-0 pointer-events-none w-0 h-0"
-                tabIndex={-1}
-              />
             </div>
 
             {/* Reset & Mobile Export Button */}
             <div className="flex items-center gap-2">
-              {(searchTerm || dateFilter || selectedCategory !== 'Semua') && (
+              {(searchTerm || startDate || endDate || activePreset !== 'all' || selectedCategory !== 'Semua') && (
                 <button
                   onClick={() => {
                     setSearchTerm('');
-                    setDateFilter('');
+                    handlePreset('all');
                     onSelectCategory('Semua');
                   }}
                   className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-all active:scale-95"
