@@ -1,5 +1,5 @@
 import { DailyReport } from '@/types/report';
-import * as XLSX from 'xlsx';
+import XLSX from 'xlsx-js-style';
 
 // SLA Calculator: HH:MM:SS format
 export const calculateSLA = (startTime: string, endTime: string): string => {
@@ -26,11 +26,16 @@ export const calculateSLA = (startTime: string, endTime: string): string => {
 export const getDayName = (dateStr: string): string => {
   if (!dateStr) return '';
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    return days[d.getDay()] || '';
+  }
   const d = new Date(dateStr);
   return days[d.getDay()] || '';
 };
 
-// Format Date as DD-MMM-YYYY (e.g. 13-Aug-2026)
+// Format Date as DD-MMM-YYYY (e.g. 13-Aug-2026, 02-Sep-2026)
 export const formatDateFormatted = (dateStr: string): string => {
   if (!dateStr) return '';
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -38,7 +43,8 @@ export const formatDateFormatted = (dateStr: string): string => {
   if (parts.length !== 3) return dateStr;
   const [year, month, day] = parts;
   const monthIdx = parseInt(month, 10) - 1;
-  return `${day}-${months[monthIdx] || month}-${year}`;
+  const dayPadded = day.padStart(2, '0');
+  return `${dayPadded}-${months[monthIdx] || month}-${year}`;
 };
 
 // Format Date Range Label for Header
@@ -59,8 +65,24 @@ export const formatDateRangeLabel = (startDate: string, endDate: string): string
 
   if (startDate && endDate) {
     return `${formatID(startDate)} - ${formatID(endDate)}`;
+  } else if (startDate) {
+    return `Mulai ${formatID(startDate)}`;
+  } else if (endDate) {
+    return `Sampai ${formatID(endDate)}`;
   }
   return 'Semua Periode';
+};
+
+// Map category string to official tab name
+export const getCategoryTab = (category: string): string => {
+  const c = (category || '').toLowerCase();
+  if (c.includes('soft')) return 'Software';
+  if (c.includes('hard')) return 'Hardware';
+  if (c.includes('net')) return 'Network';
+  if (c.includes('meet') || c.includes('video') || c.includes('confer')) return 'Meeting';
+  if (c.includes('malware') || c.includes('virus') || c.includes('secur')) return 'Malware';
+  if (c.includes('relok') || c.includes('renov')) return 'Relokasi';
+  return 'Lainnya';
 };
 
 export const exportToExcel = (reports: DailyReport[], startDate: string, endDate: string) => {
@@ -69,12 +91,12 @@ export const exportToExcel = (reports: DailyReport[], startDate: string, endDate
     return;
   }
 
-  // Sort reports ascending (A-Z / 1-10) by tanggalPengerjaan (oldest to newest date)
+  // Sort reports ascending by tanggalPengerjaan (oldest to newest date) then by waktuMulai
   const sortedReports = [...reports].sort((a, b) => {
     const dateA = a.tanggalPengerjaan || '';
     const dateB = b.tanggalPengerjaan || '';
     if (dateA !== dateB) {
-      return dateA.localeCompare(dateB); // Ascending date order (A-Z / 1-10)
+      return dateA.localeCompare(dateB);
     }
     const timeA = a.waktuMulai || '';
     const timeB = b.waktuMulai || '';
@@ -84,18 +106,18 @@ export const exportToExcel = (reports: DailyReport[], startDate: string, endDate
   const workbook = XLSX.utils.book_new();
   const periodLabel = formatDateRangeLabel(startDate, endDate);
 
-  // Category Tabs mapping to match screenshot bottom tabs
+  // Exact 7 Category Tabs in official order: Hardware, Software, Network, Meeting, Malware, Relokasi, Lainnya
   const categoryTabs = [
-    { key: 'Software Kanwil', tabName: 'Software' },
-    { key: 'Hardware Kanwil', tabName: 'Hardware' },
-    { key: 'Network/Jaringan', tabName: 'Network' },
-    { key: 'Video Confference & Meeting', tabName: 'Meeting' },
-    { key: 'Malware', tabName: 'Malware' },
-    { key: 'Relokasi/Renovasi', tabName: 'Relokasi' },
-    { key: 'Lainnya', tabName: 'Lainnya' },
+    { tabName: 'Hardware', titleName: 'Hardware' },
+    { tabName: 'Software', titleName: 'Software' },
+    { tabName: 'Network', titleName: 'Network' },
+    { tabName: 'Meeting', titleName: 'Meeting' },
+    { tabName: 'Malware', titleName: 'Malware' },
+    { tabName: 'Relokasi', titleName: 'Relokasi' },
+    { tabName: 'Lainnya', titleName: 'Lainnya' },
   ];
 
-  // Helper to build worksheet array matching exact Pegadaian report format
+  // Helper to build worksheet array matching exact Pegadaian report format (12 columns A to L)
   const buildSheetData = (catReports: DailyReport[], categoryName: string) => {
     const titleRow1 = [
       `Daftar supporting ${categoryName} di kantor wilayah pada Departemen IT Operation di PT. Pegadaian`
@@ -122,14 +144,14 @@ export const exportToExcel = (reports: DailyReport[], startDate: string, endDate
       idx + 1,
       getDayName(item.tanggalPengerjaan),
       formatDateFormatted(item.tanggalPengerjaan),
-      item.picSupport,
-      item.unitKerja,
-      item.nama,
-      item.deskripsiPermohonan,
+      item.picSupport || '',
+      item.unitKerja || '',
+      item.nama || '',
+      item.deskripsiPermohonan || '',
       item.metodePenanganan || 'Guide',
-      item.solusiIssue,
-      item.waktuMulai,
-      item.waktuSelesai,
+      item.solusiIssue || '',
+      item.waktuMulai || '',
+      item.waktuSelesai || '',
       calculateSLA(item.waktuMulai, item.waktuSelesai)
     ]);
 
@@ -141,109 +163,119 @@ export const exportToExcel = (reports: DailyReport[], startDate: string, endDate
     ];
   };
 
-  // Helper to apply styling & color branding to worksheet
-  const styleWorksheet = (ws: XLSX.WorkSheet, totalRows: number) => {
+  // Helper to style worksheet exactly matching the user's template (12 columns A to L)
+  const styleWorksheet = (ws: XLSX.WorkSheet, totalRows: number, categoryName: string) => {
+    // Column widths for columns A to L (12 columns)
     ws['!cols'] = [
       { wch: 6 },  // A: No.
       { wch: 14 }, // B: Hari
       { wch: 18 }, // C: Tanggal Pelaporan
-      { wch: 20 }, // D: PIC
-      { wch: 26 }, // E: Unit kerja
-      { wch: 24 }, // F: Nama user
-      { wch: 45 }, // G: Deskripsi permohonan
-      { wch: 20 }, // H: Metode Penanganan
-      { wch: 45 }, // I: Solusi Issue
-      { wch: 16 }, // J: Waktu Pengerjaan
-      { wch: 16 }, // K: Waktu Selesai
+      { wch: 42 }, // D: PIC
+      { wch: 28 }, // E: Unit kerja
+      { wch: 20 }, // F: Nama user
+      { wch: 55 }, // G: Deskripsi permohonan
+      { wch: 22 }, // H: Metode Penanganan
+      { wch: 55 }, // I: Solusi Issue
+      { wch: 18 }, // J: Waktu Pengerjaan
+      { wch: 18 }, // K: Waktu Selesai
       { wch: 14 }, // L: SLA
     ];
 
+    // Row heights
+    ws['!rows'] = [
+      { hpt: 24 }, // Row 1: Title
+      { hpt: 20 }, // Row 2: Subtitle
+      { hpt: 24 }, // Row 3: Column Headers
+    ];
+
+    // Merged ranges for Title and Subtitle across columns A to L (0 to 11)
     ws['!merges'] = [
       { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } }, // Merge A1:L1 (Title Cyan)
       { s: { r: 1, c: 0 }, e: { r: 1, c: 11 } }, // Merge A2:L2 (Subtitle Yellow)
     ];
 
+    // Ensure gridlines are visible
+    ws['!views'] = [{ showGridLines: true }];
+
     const getColLetter = (c: number) => String.fromCharCode(65 + c);
 
-    // Row 1 Title (Cyan Background #00BCD4)
+    const thinBorder = {
+      top: { style: 'thin', color: { rgb: '000000' } },
+      bottom: { style: 'thin', color: { rgb: '000000' } },
+      left: { style: 'thin', color: { rgb: '000000' } },
+      right: { style: 'thin', color: { rgb: '000000' } }
+    };
+
+    const titleText = `Daftar supporting ${categoryName} di kantor wilayah pada Departemen IT Operation di PT. Pegadaian`;
+    const subtitleText = `Manage Service Support Kantor Wilayah Periode ( ${periodLabel} )`;
+
+    // Row 1: Title (Cyan Background #00FFFF, centered, bold, 11pt, thin border across A1:L1)
     for (let c = 0; c < 12; c++) {
       const cellRef = `${getColLetter(c)}1`;
-      if (!ws[cellRef]) ws[cellRef] = { v: '', t: 's' };
+      if (!ws[cellRef]) ws[cellRef] = { v: c === 0 ? titleText : '', t: 's' };
       ws[cellRef].s = {
-        fill: { patternType: 'solid', fgColor: { rgb: '00BCD4' } },
-        font: { name: 'Arial', sz: 11, bold: true, color: { rgb: 'FFFFFF' } },
-        alignment: { horizontal: 'left', vertical: 'center' }
+        fill: { patternType: 'solid', fgColor: { rgb: '00FFFF' } },
+        font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: '000000' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: thinBorder
       };
     }
 
-    // Row 2 Subtitle (Yellow Background #FFD600)
+    // Row 2: Subtitle (Yellow Background #FFFF00, centered, bold, 10pt, thin border across A2:L2)
     for (let c = 0; c < 12; c++) {
       const cellRef = `${getColLetter(c)}2`;
-      if (!ws[cellRef]) ws[cellRef] = { v: '', t: 's' };
+      if (!ws[cellRef]) ws[cellRef] = { v: c === 0 ? subtitleText : '', t: 's' };
       ws[cellRef].s = {
-        fill: { patternType: 'solid', fgColor: { rgb: 'FFD600' } },
-        font: { name: 'Arial', sz: 10, bold: true, color: { rgb: '333333' } },
-        alignment: { horizontal: 'left', vertical: 'center' }
+        fill: { patternType: 'solid', fgColor: { rgb: 'FFFF00' } },
+        font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: '000000' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: thinBorder
       };
     }
 
-    // Row 3 Column Headers (Gold #FFC107 Background)
+    // Row 3: Column Headers (Peach Background #F8CBAD, centered, bold, 10pt, thin border across A3:L3)
     for (let c = 0; c < 12; c++) {
       const cellRef = `${getColLetter(c)}3`;
       if (ws[cellRef]) {
-        const isCenter = [0, 1, 2, 7, 9, 10, 11].includes(c);
         ws[cellRef].s = {
-          fill: { patternType: 'solid', fgColor: { rgb: 'FFC107' } },
-          font: { name: 'Arial', sz: 10, bold: true, color: { rgb: '000000' } },
-          alignment: { horizontal: isCenter ? 'center' : 'left', vertical: 'center' },
-          border: {
-            top: { style: 'thin', color: { rgb: '000000' } },
-            bottom: { style: 'thin', color: { rgb: '000000' } },
-            left: { style: 'thin', color: { rgb: '000000' } },
-            right: { style: 'thin', color: { rgb: '000000' } }
-          }
+          fill: { patternType: 'solid', fgColor: { rgb: 'F8CBAD' } },
+          font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: '000000' } },
+          alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+          border: thinBorder
         };
       }
     }
 
-    // Data Rows Styling
+    // Row 4+: Data Rows (White Background #FFFFFF, 10pt, thin border across columns A to L)
     for (let r = 3; r < totalRows; r++) {
       const rowNum = r + 1;
-      const isEven = r % 2 === 0;
-      const bgHex = isEven ? 'F9FAFB' : 'FFFFFF';
-
       for (let c = 0; c < 12; c++) {
         const cellRef = `${getColLetter(c)}${rowNum}`;
-        if (ws[cellRef]) {
-          const isCenter = [0, 1, 2, 7, 9, 10, 11].includes(c);
-          ws[cellRef].s = {
-            fill: { patternType: 'solid', fgColor: { rgb: bgHex } },
-            font: { name: 'Arial', sz: 10, color: { rgb: '1E293B' } },
-            alignment: { horizontal: isCenter ? 'center' : 'left', vertical: 'center', wrapText: true },
-            border: {
-              top: { style: 'thin', color: { rgb: 'E2E8F0' } },
-              bottom: { style: 'thin', color: { rgb: 'E2E8F0' } },
-              left: { style: 'thin', color: { rgb: 'E2E8F0' } },
-              right: { style: 'thin', color: { rgb: 'E2E8F0' } }
-            }
-          };
+        if (!ws[cellRef]) {
+          ws[cellRef] = { v: '', t: 's' };
         }
+        // Center align: No. (col 0), Waktu Pengerjaan (col 9), Waktu Selesai (col 10), SLA (col 11)
+        const isCentered = c === 0 || c === 9 || c === 10 || c === 11;
+        ws[cellRef].s = {
+          fill: { patternType: 'solid', fgColor: { rgb: 'FFFFFF' } },
+          font: { name: 'Calibri', sz: 10, color: { rgb: '000000' } },
+          alignment: { 
+            horizontal: isCentered ? 'center' : 'left', 
+            vertical: 'center', 
+            wrapText: true 
+          },
+          border: thinBorder
+        };
       }
     }
   };
 
-  // 1. Add sheet for All Data (Semua Laporan)
-  const allSheetData = buildSheetData(sortedReports, 'All Services');
-  const allWorksheet = XLSX.utils.aoa_to_sheet(allSheetData);
-  styleWorksheet(allWorksheet, allSheetData.length);
-  XLSX.utils.book_append_sheet(workbook, allWorksheet, 'Semua Laporan');
-
-  // 2. Add individual category sheets matching bottom tabs
+  // Populate the 7 category sheets matching the bottom tabs in the screenshot
   categoryTabs.forEach((cat) => {
-    const catReports = sortedReports.filter(r => r.category === cat.key);
-    const sheetData = buildSheetData(catReports, cat.tabName);
+    const catReports = sortedReports.filter(r => getCategoryTab(r.category) === cat.tabName);
+    const sheetData = buildSheetData(catReports, cat.titleName);
     const ws = XLSX.utils.aoa_to_sheet(sheetData);
-    styleWorksheet(ws, sheetData.length);
+    styleWorksheet(ws, sheetData.length, cat.titleName);
     XLSX.utils.book_append_sheet(workbook, ws, cat.tabName);
   });
 
