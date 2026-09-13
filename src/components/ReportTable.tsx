@@ -34,6 +34,8 @@ import {
 import { DailyReport } from '@/types/report';
 import { calculateSLA, getDayName, formatDateFormatted } from '@/utils/exportUtils';
 import { ConfirmModal } from '@/components/ConfirmModal';
+import { analyzeChronicIssues } from '@/utils/chronicIssueDetection';
+import { ChronicIssuesModal } from '@/components/ChronicIssuesModal';
 
 interface ReportTableProps {
   reports: DailyReport[];
@@ -74,6 +76,10 @@ export const ReportTable: React.FC<ReportTableProps> = ({
   const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
   const dateDropdownRef = useRef<HTMLDivElement>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isChronicModalOpen, setIsChronicModalOpen] = useState(false);
+
+  // Analisis cerdas kendala berulang & unit watchlist
+  const chronicSummary = useMemo(() => analyzeChronicIssues(reports), [reports]);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -654,7 +660,48 @@ export const ReportTable: React.FC<ReportTableProps> = ({
         </div>
       </div>
 
-      {/* 2. Category Interactive Horizontal Pill Tabs Bar */}
+      {/* 2. Chronic Issues / Problem Management Alert Banner */}
+      {chronicSummary.totalUnitsNeedingAction > 0 && (
+        <div className="bg-gradient-to-r from-amber-50 via-orange-50/60 to-amber-50 border border-amber-300/80 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs animate-in fade-in duration-200">
+          <div className="flex items-start sm:items-center gap-3 min-w-0">
+            <div className="p-2.5 bg-amber-500 text-white rounded-xl shadow-xs shrink-0 animate-pulse mt-0.5 sm:mt-0">
+              <ShieldAlert className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h4 className="text-xs sm:text-sm font-black text-slate-800 leading-tight">
+                  Deteksi Kendala Kronis: {chronicSummary.totalUnitsNeedingAction} Unit Kerja Memerlukan Tindakan Permanen
+                </h4>
+                {chronicSummary.criticalCount > 0 && (
+                  <span className="text-[10px] bg-rose-600 text-white px-2 py-0.2 rounded-full font-black">
+                    {chronicSummary.criticalCount} FSCK/OS Butuh Install Ulang
+                  </span>
+                )}
+                {chronicSummary.highCount > 0 && (
+                  <span className="text-[10px] bg-amber-600 text-white px-2 py-0.2 rounded-full font-black">
+                    {chronicSummary.highCount} Kabel LAN Wajib Visit
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] sm:text-xs text-slate-600 mt-0.5 leading-relaxed">
+                Terdapat unit kerja yang berulang kali mengalami kendala sama. Sistem telah menyusun rekomendasi aksi tuntas (Problem Management).
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsChronicModalOpen(true)}
+            className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black shrink-0 transition-all shadow-xs active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            <span>Buka Unit Watchlist</span>
+            <span className="bg-amber-400 text-slate-900 px-1.5 py-0.2 rounded-md font-mono text-[10px] font-black">
+              {chronicSummary.recommendations.length}
+            </span>
+          </button>
+        </div>
+      )}
+
+      {/* 3. Category Interactive Horizontal Pill Tabs Bar */}
       <div className="bg-white p-2 sm:p-3 rounded-2xl border border-slate-200/80 shadow-xs">
         <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-0.5 max-w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {CATEGORY_ITEMS.map((cat) => {
@@ -692,7 +739,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({
         </div>
       </div>
 
-      {/* 3. Main Data Card with Toolbar & Table */}
+      {/* 4. Main Data Card with Toolbar & Table */}
       <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xs border border-slate-200/80 overflow-hidden">
         {/* Table Toolbar Header */}
         <div className="p-3.5 sm:p-5 border-b border-slate-200/80 bg-gradient-to-r from-slate-50 via-white to-slate-50 flex flex-col gap-3">
@@ -714,8 +761,27 @@ export const ReportTable: React.FC<ReportTableProps> = ({
             {/* Quick Export & Add on Desktop */}
             <div className="hidden sm:flex items-center gap-2">
               <button
+                type="button"
+                onClick={() => setIsChronicModalOpen(true)}
+                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 border cursor-pointer ${
+                  chronicSummary.totalUnitsNeedingAction > 0
+                    ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300 ring-1 ring-amber-400/30'
+                    : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                }`}
+                title="Buka Unit Watchlist & Rekomendasi Tindak Lanjut"
+              >
+                <ShieldAlert className={`w-3.5 h-3.5 ${chronicSummary.totalUnitsNeedingAction > 0 ? 'text-amber-600' : 'text-slate-400'}`} />
+                <span>Unit Watchlist</span>
+                {chronicSummary.totalUnitsNeedingAction > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-rose-600 text-white">
+                    {chronicSummary.totalUnitsNeedingAction}
+                  </span>
+                )}
+              </button>
+
+              <button
                 onClick={onOpenExportModal}
-                className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 border border-slate-700"
+                className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 border border-slate-700 cursor-pointer"
                 title="Export Laporan ke Excel"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-300" />
@@ -799,6 +865,17 @@ export const ReportTable: React.FC<ReportTableProps> = ({
                   className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-all active:scale-95"
                 >
                   Reset
+                </button>
+              )}
+
+              {chronicSummary.totalUnitsNeedingAction > 0 && (
+                <button
+                  onClick={() => setIsChronicModalOpen(true)}
+                  className="flex sm:hidden items-center gap-1 px-2.5 py-2 bg-amber-600 text-white text-xs font-bold rounded-xl shadow-xs"
+                  title="Buka Unit Watchlist"
+                >
+                  <ShieldAlert className="w-3.5 h-3.5" />
+                  <span>Watchlist ({chronicSummary.totalUnitsNeedingAction})</span>
                 </button>
               )}
 
@@ -1269,6 +1346,19 @@ export const ReportTable: React.FC<ReportTableProps> = ({
           </div>
         </div>
       )}
+
+      {/* Chronic Issues & Action Recommendations Modal */}
+      <ChronicIssuesModal
+        isOpen={isChronicModalOpen}
+        onClose={() => setIsChronicModalOpen(false)}
+        summary={chronicSummary}
+        onSelectUnitFilter={(unitName) => {
+          setSearchTerm(unitName);
+        }}
+        onOpenAddReportWithUnit={(_unitName) => {
+          onOpenAddModal();
+        }}
+      />
     </div>
   );
 };
