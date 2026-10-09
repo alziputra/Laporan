@@ -72,7 +72,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [activePreset, setActivePreset] = useState<'cycle21' | 'cycle13' | 'month' | 'today' | '7days' | 'all' | 'custom'>('all');
+  const [activePreset, setActivePreset] = useState<'cycle21' | 'cycle13' | 'cycle13_next' | 'month' | 'today' | '7days' | 'all' | 'custom'>('all');
   const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
   const dateDropdownRef = useRef<HTMLDivElement>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -105,7 +105,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({
   };
 
   // Handle Quick Presets (matches Export Laporan cycles)
-  const handlePreset = (type: 'cycle21' | 'cycle13' | 'month' | 'today' | '7days' | 'all') => {
+  const handlePreset = (type: 'cycle21' | 'cycle13' | 'cycle13_next' | 'month' | 'today' | '7days' | 'all') => {
     setActivePreset(type);
     const curr = new Date();
     const y = curr.getFullYear();
@@ -120,6 +120,11 @@ export const ReportTable: React.FC<ReportTableProps> = ({
     } else if (type === 'cycle13') {
       const start = new Date(y, m - 1, 13);
       const end = new Date(y, m, 12);
+      setStartDate(formatDateISO(start));
+      setEndDate(formatDateISO(end));
+    } else if (type === 'cycle13_next') {
+      const start = new Date(y, m, 13);
+      const end = new Date(y, m + 1, 12);
       setStartDate(formatDateISO(start));
       setEndDate(formatDateISO(end));
     } else if (type === 'month') {
@@ -143,7 +148,8 @@ export const ReportTable: React.FC<ReportTableProps> = ({
 
   // Get User-friendly Preset or Date Range Label
   const getPresetLabel = () => {
-    if (activePreset === 'cycle13') return 'Siklus 13-12';
+    if (activePreset === 'cycle13') return 'Siklus 13 Lalu (13-12)';
+    if (activePreset === 'cycle13_next') return 'Siklus 13 Ini (13-12/13)';
     if (activePreset === 'cycle21') return 'Siklus 21-20';
     if (activePreset === 'month') return 'Bulan Ini';
     if (activePreset === 'today') return 'Hari Ini';
@@ -162,8 +168,8 @@ export const ReportTable: React.FC<ReportTableProps> = ({
     setCurrentPage(1);
   }, [searchTerm, selectedCategory, startDate, endDate, itemsPerPage]);
 
-  // Filtered dataset (Search + Category + Date Range Filter)
-  const filteredReports = useMemo(() => {
+  // Base dataset filtered by search and date range (before category filtering)
+  const dateAndSearchFilteredReports = useMemo(() => {
     return reports.filter((item) => {
       const q = searchTerm.toLowerCase().trim();
       const matchesSearch = 
@@ -175,8 +181,6 @@ export const ReportTable: React.FC<ReportTableProps> = ({
         (item.metodePenanganan && item.metodePenanganan.toLowerCase().includes(q)) ||
         (item.picSupport && item.picSupport.toLowerCase().includes(q));
 
-      const matchesCategory = selectedCategory === 'Semua' || item.category === selectedCategory;
-
       let matchesDate = true;
       if (startDate && endDate) {
         matchesDate = item.tanggalPengerjaan >= startDate && item.tanggalPengerjaan <= endDate;
@@ -186,9 +190,26 @@ export const ReportTable: React.FC<ReportTableProps> = ({
         matchesDate = item.tanggalPengerjaan <= endDate;
       }
 
-      return matchesSearch && matchesCategory && matchesDate;
+      return matchesSearch && matchesDate;
     });
-  }, [reports, searchTerm, selectedCategory, startDate, endDate]);
+  }, [reports, searchTerm, startDate, endDate]);
+
+  // Category counts synchronized with active date/search filters
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = { Semua: dateAndSearchFilteredReports.length };
+    CATEGORY_ITEMS.forEach(cat => {
+      if (cat.name !== 'Semua') {
+        counts[cat.name] = dateAndSearchFilteredReports.filter(r => r.category === cat.name).length;
+      }
+    });
+    return counts;
+  }, [dateAndSearchFilteredReports]);
+
+  // Final filtered dataset (Search + Date Range + Selected Category)
+  const filteredReports = useMemo(() => {
+    if (selectedCategory === 'Semua') return dateAndSearchFilteredReports;
+    return dateAndSearchFilteredReports.filter((item) => item.category === selectedCategory);
+  }, [dateAndSearchFilteredReports, selectedCategory]);
 
   // Real-time Dynamic KPI Stats calculation
   const stats = useMemo(() => {
@@ -231,15 +252,52 @@ export const ReportTable: React.FC<ReportTableProps> = ({
     };
   }, [filteredReports]);
 
-  // Category counts
-  const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = { Semua: reports.length };
-    CATEGORY_ITEMS.forEach(cat => {
-      if (cat.name !== 'Semua') {
-        counts[cat.name] = reports.filter(r => r.category === cat.name).length;
+  // Dynamic Cycle 13 Count Calculation (13 Bulan Lalu - 12 Bulan Ini & 13 Bulan Ini - 12 Bulan Depan)
+  const cycleCounts = useMemo(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth(); // 0-indexed
+
+    const toISO = (d: Date) => {
+      const yr = d.getFullYear();
+      const mo = String(d.getMonth() + 1).padStart(2, '0');
+      const da = String(d.getDate()).padStart(2, '0');
+      return `${yr}-${mo}-${da}`;
+    };
+
+    const monthNamesShort = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
+    // 1. Periode 13 Bulan Ini - 12 Bulan Lalu (Siklus 13 Lalu: 13 [m-1] s/d 12 [m])
+    const c1Start = new Date(y, m - 1, 13);
+    const c1End = new Date(y, m, 12);
+    const c1StartISO = toISO(c1Start);
+    const c1EndISO = toISO(c1End);
+    const c1Label = `13 ${monthNamesShort[c1Start.getMonth()]} - 12 ${monthNamesShort[c1End.getMonth()]}`;
+
+    // 2. Periode 13 Bulan Ini - 12 Bulan Depan (Siklus 13 Ini: 13 [m] s/d 12 [m+1])
+    const c2Start = new Date(y, m, 13);
+    const c2End = new Date(y, m + 1, 12);
+    const c2StartISO = toISO(c2Start);
+    const c2EndISO = toISO(c2End);
+    const c2Label = `13 ${monthNamesShort[c2Start.getMonth()]} - 12 ${monthNamesShort[c2End.getMonth()]}`;
+
+    const count1 = reports.filter(r => r.tanggalPengerjaan >= c1StartISO && r.tanggalPengerjaan <= c1EndISO).length;
+    const count2 = reports.filter(r => r.tanggalPengerjaan >= c2StartISO && r.tanggalPengerjaan <= c2EndISO).length;
+
+    return {
+      cycle1: {
+        startISO: c1StartISO,
+        endISO: c1EndISO,
+        label: c1Label,
+        count: count1
+      },
+      cycle2: {
+        startISO: c2StartISO,
+        endISO: c2EndISO,
+        label: c2Label,
+        count: count2
       }
-    });
-    return counts;
+    };
   }, [reports]);
 
   // Missing Workdays (Senin - Jumat) Monitoring
@@ -376,57 +434,66 @@ export const ReportTable: React.FC<ReportTableProps> = ({
   return (
     <div className="space-y-4 sm:space-y-5">
       {/* 1. KPI / Stats Overview Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2.5 sm:gap-4">
         {/* Card 1: Total Laporan dengan Pilihan Tanggal seperti Export Laporan */}
-        <div className={`relative bg-white p-3.5 sm:p-5 rounded-2xl border transition-all ${
+        <div className={`relative bg-white p-3.5 sm:p-4 rounded-2xl border transition-all flex flex-col justify-between ${
           activePreset !== 'all' || startDate || endDate
             ? 'border-emerald-300 ring-2 ring-emerald-400/20 shadow-md'
             : 'border-slate-200/80 shadow-xs hover:border-slate-300'
         }`}>
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">
-              Total Laporan
-            </p>
-            {/* Tombol Pilihan Tanggal seperti Export Laporan */}
-            <button
-              type="button"
-              onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[10px] sm:text-[11px] font-extrabold border transition-all cursor-pointer active:scale-95 ${
-                activePreset !== 'all' || startDate || endDate
-                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
-                  : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200/90'
-              }`}
-              title="Klik untuk memilih rentang tanggal seperti export laporan"
-            >
-              <Calendar className="w-3 h-3 shrink-0" />
-              <span className="truncate max-w-[120px] sm:max-w-[150px]">{getPresetLabel()}</span>
-              <ChevronDown className={`w-3 h-3 shrink-0 transition-transform ${isDateDropdownOpen ? 'rotate-180' : ''}`} />
-            </button>
+          <div>
+            <div className="flex items-center justify-between gap-1.5">
+              <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">
+                Total Laporan
+              </p>
+              {/* Tombol Pilihan Tanggal seperti Export Laporan */}
+              <button
+                type="button"
+                onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
+                className={`flex items-center gap-1 px-2 py-1 rounded-xl text-[10px] font-extrabold border transition-all cursor-pointer active:scale-95 ${
+                  activePreset !== 'all' || startDate || endDate
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                    : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200/90'
+                }`}
+                title="Klik untuk memilih rentang tanggal seperti export laporan"
+              >
+                <Calendar className="w-3 h-3 shrink-0" />
+                <span className="truncate max-w-[90px] sm:max-w-[110px]">{getPresetLabel()}</span>
+                <ChevronDown className={`w-3 h-3 shrink-0 transition-transform ${isDateDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between mt-2">
+              <div className="min-w-0">
+                <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-800">
+                  {stats.total.toLocaleString('id-ID')}
+                </h3>
+                <p className="text-[10px] sm:text-[11px] text-emerald-600 font-bold mt-0.5 flex items-center gap-1 truncate">
+                  <Sparkles className="w-3 h-3 shrink-0" />
+                  <span>
+                    {selectedCategory !== 'Semua' 
+                      ? `Kategori: ${selectedCategory}` 
+                      : (startDate || endDate) 
+                        ? (startDate && endDate ? `${formatDateFormatted(startDate)} s/d ${formatDateFormatted(endDate)}` : getPresetLabel())
+                        : (searchTerm ? 'Sesuai Pencarian' : 'Semua Laporan')}
+                  </span>
+                </p>
+              </div>
+              <div 
+                onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
+                className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-pegadaian-50 text-pegadaian-700 flex items-center justify-center border border-pegadaian-100 shrink-0 ml-2 cursor-pointer hover:bg-pegadaian-100 transition-colors"
+                title="Pilih Siklus / Rentang Tanggal"
+              >
+                <ClipboardList className="w-5 h-5" />
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center justify-between mt-2">
-            <div className="min-w-0">
-              <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-800">
-                {stats.total.toLocaleString('id-ID')}
-              </h3>
-              <p className="text-[10px] sm:text-[11px] text-emerald-600 font-bold mt-0.5 flex items-center gap-1 truncate">
-                <Sparkles className="w-3 h-3 shrink-0" />
-                <span>
-                  {selectedCategory !== 'Semua' 
-                    ? `Kategori: ${selectedCategory}` 
-                    : (startDate || endDate) 
-                      ? (startDate && endDate ? `${formatDateFormatted(startDate)} s/d ${formatDateFormatted(endDate)}` : getPresetLabel())
-                      : (searchTerm ? 'Sesuai Pencarian' : 'Semua Laporan Tercatat')}
-                </span>
-              </p>
-            </div>
-            <div 
-              onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
-              className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-pegadaian-50 text-pegadaian-700 flex items-center justify-center border border-pegadaian-100 shrink-0 ml-2 cursor-pointer hover:bg-pegadaian-100 transition-colors"
-              title="Pilih Siklus / Rentang Tanggal"
-            >
-              <ClipboardList className="w-5 h-5 sm:w-6 sm:h-6" />
-            </div>
+          <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
+            <span className="font-semibold">Semua Laporan</span>
+            <span className="font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
+              {reports.length} Data
+            </span>
           </div>
 
           {/* Popup Dropdown Pilihan Tanggal Persis Seperti Export Laporan */}
@@ -471,24 +538,41 @@ export const ReportTable: React.FC<ReportTableProps> = ({
                     }`}
                   >
                     13 Lalu - 12 Ini
-                    <span className="block text-[9px] font-normal opacity-80">Siklus 13</span>
+                    <span className="flex items-center justify-between text-[9px] font-normal opacity-90 mt-0.5">
+                      <span>Siklus 13 Lalu</span>
+                      <span className="font-bold bg-white/30 px-1 py-0.2 rounded text-[10px]">{cycleCounts.cycle1.count} Data</span>
+                    </span>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => { handlePreset('cycle21'); setIsDateDropdownOpen(false); }}
+                    onClick={() => { handlePreset('cycle13_next'); setIsDateDropdownOpen(false); }}
                     className={`py-2 px-2.5 rounded-xl text-xs font-black transition-all border text-left active:scale-95 cursor-pointer ${
-                      activePreset === 'cycle21'
+                      activePreset === 'cycle13_next'
                         ? 'bg-pegadaian-700 text-white border-pegadaian-700 shadow-xs ring-2 ring-emerald-400/40'
                         : 'bg-emerald-50/70 hover:bg-emerald-100 text-emerald-900 border-emerald-300/80'
                     }`}
                   >
-                    21 Lalu - 20 Ini
-                    <span className="block text-[9px] font-normal opacity-80">Siklus 21</span>
+                    13 Ini - 12 Depan
+                    <span className="flex items-center justify-between text-[9px] font-normal opacity-90 mt-0.5">
+                      <span>Siklus 13 Ini</span>
+                      <span className="font-bold bg-white/30 px-1 py-0.2 rounded text-[10px]">{cycleCounts.cycle2.count} Data</span>
+                    </span>
                   </button>
                 </div>
 
-                <div className="grid grid-cols-3 gap-1.5 mt-1.5">
+                <div className="grid grid-cols-4 gap-1.5 mt-1.5">
+                  <button
+                    type="button"
+                    onClick={() => { handlePreset('cycle21'); setIsDateDropdownOpen(false); }}
+                    className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border transition-all text-center active:scale-95 cursor-pointer ${
+                      activePreset === 'cycle21'
+                        ? 'bg-slate-800 text-white border-slate-800 font-extrabold'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    Siklus 21
+                  </button>
                   <button
                     type="button"
                     onClick={() => { handlePreset('month'); setIsDateDropdownOpen(false); }}
@@ -584,78 +668,181 @@ export const ReportTable: React.FC<ReportTableProps> = ({
           )}
         </div>
 
-        {/* Card 2: Hari Ini */}
-        <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between transition-all">
-          <div className="min-w-0">
-            <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">Pekerjaan Hari Ini</p>
-            <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-emerald-700 mt-0.5 sm:mt-1">
-              {stats.todayCount}
-            </h3>
-            <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium mt-0.5 truncate">
-              Laporan aktif hari ini
-            </p>
+        {/* Card 2: Periode Siklus 13 (Disebelah Semua Laporan) */}
+        <div className={`bg-white p-3.5 sm:p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+          activePreset === 'cycle13' || activePreset === 'cycle13_next'
+            ? 'border-emerald-300 ring-2 ring-emerald-400/20 shadow-md'
+            : 'border-slate-200/80 shadow-xs hover:border-slate-300'
+        }`}>
+          <div>
+            <div className="flex items-center justify-between gap-1">
+              <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">
+                Siklus Cut-Off 13
+              </p>
+              <span className="text-[9px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60 shrink-0">
+                13 s/d 12
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-1.5 mt-2">
+              {/* Periode 1: 13 Bulan Lalu - 12 Bulan Ini */}
+              <button
+                type="button"
+                onClick={() => handlePreset('cycle13')}
+                className={`p-2 rounded-xl border text-left transition-all cursor-pointer group active:scale-95 ${
+                  activePreset === 'cycle13'
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs ring-2 ring-emerald-400/30'
+                    : 'bg-emerald-50/70 hover:bg-emerald-100/90 border-emerald-200/80 text-emerald-950'
+                }`}
+                title={`Filter Siklus 13 Lalu (${cycleCounts.cycle1.label})`}
+              >
+                <div className={`text-[9px] font-bold truncate ${activePreset === 'cycle13' ? 'text-emerald-100' : 'text-emerald-800'}`}>
+                  13 Lalu - 12 Ini
+                </div>
+                <div className="flex items-baseline justify-between mt-1">
+                  <span className={`text-base sm:text-xl font-black ${activePreset === 'cycle13' ? 'text-white' : 'text-emerald-900'}`}>
+                    {cycleCounts.cycle1.count}
+                  </span>
+                  <span className={`text-[9px] font-semibold truncate ${activePreset === 'cycle13' ? 'text-emerald-200' : 'text-emerald-600'}`}>
+                    {cycleCounts.cycle1.label}
+                  </span>
+                </div>
+              </button>
+
+              {/* Periode 2: 13 Bulan Ini - 12 Bulan Depan */}
+              <button
+                type="button"
+                onClick={() => handlePreset('cycle13_next')}
+                className={`p-2 rounded-xl border text-left transition-all cursor-pointer group active:scale-95 ${
+                  activePreset === 'cycle13_next'
+                    ? 'bg-teal-600 text-white border-teal-600 shadow-2xs ring-2 ring-teal-400/30'
+                    : 'bg-teal-50/70 hover:bg-teal-100/90 border-teal-200/80 text-teal-950'
+                }`}
+                title={`Filter Siklus 13 Ini (${cycleCounts.cycle2.label})`}
+              >
+                <div className={`text-[9px] font-bold truncate ${activePreset === 'cycle13_next' ? 'text-teal-100' : 'text-teal-800'}`}>
+                  13 Ini - 12 Depan
+                </div>
+                <div className="flex items-baseline justify-between mt-1">
+                  <span className={`text-base sm:text-xl font-black ${activePreset === 'cycle13_next' ? 'text-white' : 'text-teal-900'}`}>
+                    {cycleCounts.cycle2.count}
+                  </span>
+                  <span className={`text-[9px] font-semibold truncate ${activePreset === 'cycle13_next' ? 'text-teal-200' : 'text-teal-600'}`}>
+                    {cycleCounts.cycle2.label}
+                  </span>
+                </div>
+              </button>
+            </div>
           </div>
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shrink-0 ml-2">
-            <Clock className="w-5 h-5 sm:w-6 sm:h-6" />
+
+          <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
+            <span className="font-semibold">Klik periode untuk filter</span>
+            <Sparkles className="w-3 h-3 text-emerald-500 shrink-0" />
+          </div>
+        </div>
+
+        {/* Card 2: Hari Ini */}
+        <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between transition-all">
+          <div>
+            <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">Pekerjaan Hari Ini</p>
+            <div className="flex items-center justify-between mt-2">
+              <div className="min-w-0">
+                <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-emerald-700">
+                  {stats.todayCount}
+                </h3>
+                <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium mt-0.5 truncate">
+                  Laporan aktif hari ini
+                </p>
+              </div>
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shrink-0 ml-2">
+                <Clock className="w-5 h-5 sm:w-6 sm:h-6" />
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
+            <span className="font-semibold">Status Harian</span>
+            <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
+              {stats.todayCount > 0 ? `${stats.todayCount} Tugas Selesai` : 'Belum Ada Tugas'}
+            </span>
           </div>
         </div>
 
         {/* Card 3: Rata-rata SLA */}
-        <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between transition-all">
-          <div className="min-w-0">
+        <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between transition-all">
+          <div>
             <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">Rata-Rata SLA</p>
-            <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-teal-700 mt-0.5 sm:mt-1 font-mono">
-              {stats.avgSlaFormatted}
-            </h3>
-            <p className="text-[10px] sm:text-[11px] text-teal-600 font-bold mt-0.5 flex items-center gap-1 truncate">
-              <Zap className="w-3 h-3 shrink-0" />
-              <span>{stats.avgMinutes <= 15 ? 'Respon Cepat ⚡' : 'Standar Layanan'}</span>
-            </p>
+            <div className="flex items-center justify-between mt-2">
+              <div className="min-w-0">
+                <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-teal-700 font-mono">
+                  {stats.avgSlaFormatted}
+                </h3>
+                <p className="text-[10px] sm:text-[11px] text-teal-600 font-bold mt-0.5 flex items-center gap-1 truncate">
+                  <Zap className="w-3 h-3 shrink-0" />
+                  <span>{stats.avgMinutes <= 15 ? 'Respon Cepat ⚡' : 'Standar Layanan'}</span>
+                </p>
+              </div>
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center border border-teal-100 shrink-0 ml-2">
+                <Zap className="w-5 h-5 sm:w-6 sm:h-6" />
+              </div>
+            </div>
           </div>
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center border border-teal-100 shrink-0 ml-2">
-            <Zap className="w-5 h-5 sm:w-6 sm:h-6" />
+          <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
+            <span className="font-semibold">Target SLA Kanwil</span>
+            <span className="font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200/60 font-mono">
+              &le; 15 Menit
+            </span>
           </div>
         </div>
 
         {/* Card 4: Hari Kosong (Senin - Jumat) */}
         <div 
           onClick={() => setIsMissingDaysModalOpen(true)}
-          className={`p-3.5 sm:p-5 rounded-2xl border shadow-xs flex items-center justify-between transition-all cursor-pointer hover:shadow-md active:scale-98 ${
+          className={`p-3.5 sm:p-5 rounded-2xl border shadow-xs flex flex-col justify-between transition-all cursor-pointer hover:shadow-md active:scale-98 ${
             missingWorkdays.length === 0
               ? 'bg-white border-slate-200/80 hover:border-emerald-300'
               : 'bg-gradient-to-br from-amber-50/90 to-amber-100/50 border-amber-200 hover:border-amber-300'
           }`}
           title="Klik untuk melihat daftar hari kerja yang belum ada laporan"
         >
-          <div className="min-w-0">
+          <div>
             <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">Hari Kosong (Sen - Jum)</p>
-            <h3 className={`text-xl sm:text-2xl lg:text-3xl font-black mt-0.5 sm:mt-1 ${
-              missingWorkdays.length === 0 ? 'text-emerald-700' : 'text-amber-700'
-            }`}>
-              {missingWorkdays.length} <span className="text-xs sm:text-sm font-bold">Hari</span>
-            </h3>
-            <p className={`text-[10px] sm:text-[11px] font-bold mt-0.5 flex items-center gap-1 truncate ${
-              missingWorkdays.length === 0 ? 'text-emerald-600' : 'text-amber-700'
-            }`}>
-              {missingWorkdays.length === 0 ? (
-                <>
-                  <CheckCircle2 className="w-3 h-3 shrink-0" />
-                  <span>Semua Hari Terisi ✨</span>
-                </>
-              ) : (
-                <>
-                  <AlertTriangle className="w-3 h-3 shrink-0" />
-                  <span>Klik untuk lengkapi ⚠️</span>
-                </>
-              )}
-            </p>
+            <div className="flex items-center justify-between mt-2">
+              <div className="min-w-0">
+                <h3 className={`text-xl sm:text-2xl lg:text-3xl font-black ${
+                  missingWorkdays.length === 0 ? 'text-emerald-700' : 'text-amber-700'
+                }`}>
+                  {missingWorkdays.length} <span className="text-xs sm:text-sm font-bold">Hari</span>
+                </h3>
+                <p className={`text-[10px] sm:text-[11px] font-bold mt-0.5 flex items-center gap-1 truncate ${
+                  missingWorkdays.length === 0 ? 'text-emerald-600' : 'text-amber-700'
+                }`}>
+                  {missingWorkdays.length === 0 ? (
+                    <>
+                      <CheckCircle2 className="w-3 h-3 shrink-0" />
+                      <span>Semua Hari Terisi ✨</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertTriangle className="w-3 h-3 shrink-0" />
+                      <span>Klik untuk lengkapi ⚠️</span>
+                    </>
+                  )}
+                </p>
+              </div>
+              <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center border shrink-0 ml-2 ${
+                missingWorkdays.length === 0
+                  ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                  : 'bg-amber-100 text-amber-800 border-amber-200 animate-pulse'
+              }`}>
+                <CalendarX2 className="w-5 h-5 sm:w-6 sm:h-6" />
+              </div>
+            </div>
           </div>
-          <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center border shrink-0 ml-2 ${
-            missingWorkdays.length === 0
-              ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-              : 'bg-amber-100 text-amber-800 border-amber-200 animate-pulse'
-          }`}>
-            <CalendarX2 className="w-5 h-5 sm:w-6 sm:h-6" />
+          <div className="mt-3 pt-2.5 border-t border-slate-100/80 flex items-center justify-between text-[10px] text-slate-400">
+            <span className="font-semibold">Cek Kepatuhan</span>
+            <span className="font-bold text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-md border border-amber-300/60">
+              {missingWorkdays.length === 0 ? 'Lengkap 100%' : `${missingWorkdays.length} Perlu Dilengkapi`}
+            </span>
           </div>
         </div>
       </div>

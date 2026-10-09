@@ -179,7 +179,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     });
   }, [reports, startDate, endDate, selectedCategory, selectedUser, availableOfficers]);
 
-  const handlePreset = (type: 'cycle21' | 'cycle13' | 'month' | 'today' | '7days' | 'all') => {
+  const handlePreset = (type: 'cycle21' | 'cycle13' | 'cycle13_next' | 'month' | 'today' | '7days' | 'all') => {
     setActivePreset(type);
     const curr = new Date();
     const y = curr.getFullYear();
@@ -195,6 +195,12 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       // 13 Bulan Lalu - 12 Bulan Ini
       const start = new Date(y, m - 1, 13);
       const end = new Date(y, m, 12);
+      setStartDate(formatDateISO(start));
+      setEndDate(formatDateISO(end));
+    } else if (type === 'cycle13_next') {
+      // 13 Bulan Ini - 13 Bulan Depan
+      const start = new Date(y, m, 13);
+      const end = new Date(y, m + 1, 12);
       setStartDate(formatDateISO(start));
       setEndDate(formatDateISO(end));
     } else if (type === 'month') {
@@ -266,7 +272,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           {/* 1. Filter Petugas / Nama User (Hanya Tampil di Mode Admin Panel) */}
           {showUserFilter && (
             <div className="relative" ref={userDropdownRef}>
-              <label className="block text-xs font-extrabold text-slate-700 mb-1.5 flex items-center gap-1.5">
+              <label className="block text-xs font-extrabold text-slate-700 mb-1.5 items-center gap-1.5">
                 <User className="w-3.5 h-3.5 text-pegadaian-600" />
                 <span>Petugas IT Support (PIC):</span>
               </label>
@@ -355,23 +361,11 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
           {/* 2. Pilihan Cepat Siklus Pegadaian (Cut-off Laporan) */}
           <div>
-            <label className="block text-xs font-extrabold text-slate-700 mb-1.5 flex items-center gap-1.5">
+            <label className="block text-xs font-extrabold text-slate-700 mb-1.5 items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
               <span>Pilihan Cepat Rentang Tanggal:</span>
             </label>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => handlePreset('cycle21')}
-                className={`py-2 px-2 rounded-xl text-xs font-black transition-all border text-center active:scale-95 cursor-pointer ${
-                  activePreset === 'cycle21'
-                    ? 'bg-pegadaian-700 text-white border-pegadaian-700 shadow-xs ring-2 ring-emerald-400/40'
-                    : 'bg-emerald-50/60 hover:bg-emerald-100/70 text-emerald-900 border-emerald-300/80'
-                }`}
-              >
-                21 Lalu - 20 Ini
-              </button>
-
+            <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => handlePreset('cycle13')}
@@ -382,23 +376,47 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 }`}
               >
                 13 Lalu - 12 Ini
+                <span className="block text-[9px] font-normal opacity-80">Siklus 13 Lalu</span>
               </button>
 
               <button
                 type="button"
-                onClick={() => handlePreset('month')}
+                onClick={() => handlePreset('cycle13_next')}
                 className={`py-2 px-2 rounded-xl text-xs font-black transition-all border text-center active:scale-95 cursor-pointer ${
-                  activePreset === 'month'
+                  activePreset === 'cycle13_next'
                     ? 'bg-pegadaian-700 text-white border-pegadaian-700 shadow-xs ring-2 ring-emerald-400/40'
-                    : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-300'
+                    : 'bg-emerald-50/60 hover:bg-emerald-100/70 text-emerald-900 border-emerald-300/80'
                 }`}
               >
-                1 - Akhir Bln
+                13 Ini - 12 Depan
+                <span className="block text-[9px] font-normal opacity-80">Siklus 13 Ini</span>
               </button>
             </div>
 
             {/* Quick Pills Row 2 */}
-            <div className="grid grid-cols-3 gap-2 mt-2">
+            <div className="grid grid-cols-4 gap-2 mt-2">
+              <button
+                type="button"
+                onClick={() => handlePreset('cycle21')}
+                className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border transition-all text-center active:scale-95 cursor-pointer ${
+                  activePreset === 'cycle21'
+                    ? 'bg-slate-800 text-white border-slate-800 font-extrabold'
+                    : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'
+                }`}
+              >
+                Siklus 21
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePreset('month')}
+                className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border transition-all text-center active:scale-95 cursor-pointer ${
+                  activePreset === 'month'
+                    ? 'bg-slate-800 text-white border-slate-800 font-extrabold'
+                    : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'
+                }`}
+              >
+                Bulan Ini
+              </button>
               <button
                 type="button"
                 onClick={() => handlePreset('today')}
@@ -438,7 +456,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           {/* 3. Custom Date Range Pickers */}
           <div className="grid grid-cols-2 gap-2.5 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
             <div>
-              <label className="block text-[11px] font-extrabold text-slate-700 mb-1 flex items-center gap-1">
+              <label className="block text-[11px] font-extrabold text-slate-700 mb-1 items-center gap-1">
                 <Calendar className="w-3 h-3 text-pegadaian-600" />
                 <span>Tanggal Mulai</span>
               </label>
@@ -454,7 +472,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-[11px] font-extrabold text-slate-700 mb-1 flex items-center gap-1">
+              <label className="block text-[11px] font-extrabold text-slate-700 mb-1 items-center gap-1">
                 <Calendar className="w-3 h-3 text-pegadaian-600" />
                 <span>Tanggal Selesai</span>
               </label>
@@ -472,7 +490,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
           {/* 4. Filter Kategori Pekerjaan (Custom Dropdown) */}
           <div className="relative" ref={categoryDropdownRef}>
-            <label className="block text-xs font-extrabold text-slate-700 mb-1.5 flex items-center gap-1.5">
+            <label className="block text-xs font-extrabold text-slate-700 mb-1.5 items-center gap-1.5">
               <Layers className="w-3.5 h-3.5 text-pegadaian-600" />
               <span>Kategori Pekerjaan:</span>
             </label>
