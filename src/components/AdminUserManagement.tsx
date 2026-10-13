@@ -42,6 +42,8 @@ import {
   Building2,
   Activity,
   ArrowUpRight,
+  ArrowDown,
+  ArrowUp,
   CheckCircle2,
   HelpCircle,
   FolderKanban
@@ -139,6 +141,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
   // Pagination for Reports Tab
   const [reportCurrentPage, setReportCurrentPage] = useState(1);
   const [reportItemsPerPage, setReportItemsPerPage] = useState(10);
+  const [reportDateSortOrder, setReportDateSortOrder] = useState<'asc' | 'desc'>('desc');
   const dateInputRef = useRef<HTMLInputElement>(null);
 
   // Load All Users
@@ -915,6 +918,13 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
     return baseFilteredReports.filter((r) => r.category === selectedReportCategory);
   }, [baseFilteredReports, selectedReportCategory]);
 
+  const sortedReports = useMemo(() => {
+    return [...filteredReports].sort((a, b) => {
+      const dateComparison = a.tanggalPengerjaan.localeCompare(b.tanggalPengerjaan);
+      return reportDateSortOrder === 'asc' ? dateComparison : -dateComparison;
+    });
+  }, [filteredReports, reportDateSortOrder]);
+
   // 3. Category count pills dynamically synced with current filters
   const categoryPillCounts = useMemo(() => {
     const counts: Record<string, number> = {
@@ -981,11 +991,11 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
   const totalReportPages = Math.max(1, Math.ceil(totalReportItems / reportItemsPerPage));
   const startReportIndex = (reportCurrentPage - 1) * reportItemsPerPage;
   const endReportIndex = Math.min(startReportIndex + reportItemsPerPage, totalReportItems);
-  const paginatedReports = filteredReports.slice(startReportIndex, endReportIndex);
+  const paginatedReports = sortedReports.slice(startReportIndex, endReportIndex);
 
   useEffect(() => {
     setReportCurrentPage(1);
-  }, [searchReportQuery, selectedReportCategory, reportDateFilter, selectedReportUser, selectedReportKanwil, reportItemsPerPage]);
+  }, [searchReportQuery, selectedReportCategory, reportDateFilter, selectedReportUser, selectedReportKanwil, reportItemsPerPage, reportDateSortOrder]);
 
   // SLA Color Helper
   const getSLABadge = (slaStr: string) => {
@@ -1861,7 +1871,21 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                   <tr className="bg-gradient-to-r from-slate-900 via-pegadaian-900 to-slate-900 text-white uppercase text-[11px] font-extrabold tracking-wider border-b-2 border-emerald-500/50">
                     <th className="py-3.5 px-3 w-12 text-center border-r border-slate-700/60">No</th>
                     <th className="py-3.5 px-3 min-w-[85px] border-r border-slate-700/60">Hari</th>
-                    <th className="py-3.5 px-3 min-w-[100px] border-r border-slate-700/60">Tanggal</th>
+                    <th
+                      aria-sort={reportDateSortOrder === 'asc' ? 'ascending' : 'descending'}
+                      className="py-3.5 px-3 min-w-[100px] border-r border-slate-700/60"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setReportDateSortOrder((order) => order === 'asc' ? 'desc' : 'asc')}
+                        aria-label={`Urutkan tanggal ${reportDateSortOrder === 'asc' ? 'menurun' : 'menaik'}`}
+                        title={`Urutkan tanggal ${reportDateSortOrder === 'asc' ? 'menurun' : 'menaik'}`}
+                        className="inline-flex items-center gap-1.5"
+                      >
+                        Tanggal
+                        {reportDateSortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+                      </button>
+                    </th>
                     <th className="py-3.5 px-4 min-w-[140px] border-r border-slate-700/60">PIC Support</th>
                     <th className="py-3.5 px-4 min-w-[140px] border-r border-slate-700/60">Unit Kerja</th>
                     <th className="py-3.5 px-4 min-w-[120px] border-r border-slate-700/60">Nama User</th>

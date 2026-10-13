@@ -29,7 +29,9 @@ import {
   CalendarX2,
   AlertTriangle,
   CheckCircle2,
-  ChevronDown
+  ChevronDown,
+  ArrowDown,
+  ArrowUp
 } from 'lucide-react';
 import { DailyReport } from '@/types/report';
 import { calculateSLA, getDayName, formatDateFormatted } from '@/utils/exportUtils';
@@ -72,7 +74,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [activePreset, setActivePreset] = useState<'cycle21' | 'cycle13' | 'cycle13_next' | 'month' | 'today' | '7days' | 'all' | 'custom'>('all');
+  const [activePreset, setActivePreset] = useState<'cycle13' | 'cycle13_next' | 'month' | 'today' | '7days' | 'all' | 'custom'>('all');
   const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
   const dateDropdownRef = useRef<HTMLDivElement>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -84,6 +86,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [dateSortOrder, setDateSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -104,20 +107,15 @@ export const ReportTable: React.FC<ReportTableProps> = ({
     return `${year}-${month}-${day}`;
   };
 
-  // Handle Quick Presets (matches Export Laporan cycles)
-  const handlePreset = (type: 'cycle21' | 'cycle13' | 'cycle13_next' | 'month' | 'today' | '7days' | 'all') => {
+  // Handle date presets (matches Export Laporan cycles)
+  const handlePreset = (type: 'cycle13' | 'cycle13_next' | 'month' | 'today' | '7days' | 'all') => {
     setActivePreset(type);
     const curr = new Date();
     const y = curr.getFullYear();
     const m = curr.getMonth(); // 0-indexed
     const today = formatDateISO(curr);
 
-    if (type === 'cycle21') {
-      const start = new Date(y, m - 1, 21);
-      const end = new Date(y, m, 20);
-      setStartDate(formatDateISO(start));
-      setEndDate(formatDateISO(end));
-    } else if (type === 'cycle13') {
+    if (type === 'cycle13') {
       const start = new Date(y, m - 1, 13);
       const end = new Date(y, m, 12);
       setStartDate(formatDateISO(start));
@@ -150,7 +148,6 @@ export const ReportTable: React.FC<ReportTableProps> = ({
   const getPresetLabel = () => {
     if (activePreset === 'cycle13') return 'Siklus 13 Lalu (13-12)';
     if (activePreset === 'cycle13_next') return 'Siklus 13 Ini (13-12/13)';
-    if (activePreset === 'cycle21') return 'Siklus 21-20';
     if (activePreset === 'month') return 'Bulan Ini';
     if (activePreset === 'today') return 'Hari Ini';
     if (activePreset === '7days') return '7 Hari Terakhir';
@@ -166,7 +163,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({
   // Reset to page 1 whenever filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedCategory, startDate, endDate, itemsPerPage]);
+  }, [searchTerm, selectedCategory, startDate, endDate, itemsPerPage, dateSortOrder]);
 
   // Base dataset filtered by search and date range (before category filtering)
   const dateAndSearchFilteredReports = useMemo(() => {
@@ -210,6 +207,13 @@ export const ReportTable: React.FC<ReportTableProps> = ({
     if (selectedCategory === 'Semua') return dateAndSearchFilteredReports;
     return dateAndSearchFilteredReports.filter((item) => item.category === selectedCategory);
   }, [dateAndSearchFilteredReports, selectedCategory]);
+
+  const sortedReports = useMemo(() => {
+    return [...filteredReports].sort((a, b) => {
+      const dateComparison = a.tanggalPengerjaan.localeCompare(b.tanggalPengerjaan);
+      return dateSortOrder === 'asc' ? dateComparison : -dateComparison;
+    });
+  }, [filteredReports, dateSortOrder]);
 
   // Real-time Dynamic KPI Stats calculation
   const stats = useMemo(() => {
@@ -365,7 +369,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
-  const paginatedReports = filteredReports.slice(startIndex, endIndex);
+  const paginatedReports = sortedReports.slice(startIndex, endIndex);
 
   // SLA Color Helper
   const getSLABadge = (slaStr: string) => {
@@ -521,58 +525,13 @@ export const ReportTable: React.FC<ReportTableProps> = ({
                 </button>
               </div>
 
-              {/* 1. Quick Presets (Siklus Cut-off) */}
+              {/* 1. Quick Date Presets */}
               <div className="mb-3">
                 <label className="flex items-center gap-1 text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">
                   <Sparkles className="w-3 h-3 text-emerald-600" />
-                  <span>Pilihan Cepat Siklus:</span>
+                  <span>Pilihan Cepat Tanggal:</span>
                 </label>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => { handlePreset('cycle13'); setIsDateDropdownOpen(false); }}
-                    className={`py-2 px-2.5 rounded-xl text-xs font-black transition-all border text-left active:scale-95 cursor-pointer ${
-                      activePreset === 'cycle13'
-                        ? 'bg-pegadaian-700 text-white border-pegadaian-700 shadow-xs ring-2 ring-emerald-400/40'
-                        : 'bg-emerald-50/70 hover:bg-emerald-100 text-emerald-900 border-emerald-300/80'
-                    }`}
-                  >
-                    13 Lalu - 12 Ini
-                    <span className="flex items-center justify-between text-[9px] font-normal opacity-90 mt-0.5">
-                      <span>Siklus 13 Lalu</span>
-                      <span className="font-bold bg-white/30 px-1 py-0.2 rounded text-[10px]">{cycleCounts.cycle1.count} Data</span>
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => { handlePreset('cycle13_next'); setIsDateDropdownOpen(false); }}
-                    className={`py-2 px-2.5 rounded-xl text-xs font-black transition-all border text-left active:scale-95 cursor-pointer ${
-                      activePreset === 'cycle13_next'
-                        ? 'bg-pegadaian-700 text-white border-pegadaian-700 shadow-xs ring-2 ring-emerald-400/40'
-                        : 'bg-emerald-50/70 hover:bg-emerald-100 text-emerald-900 border-emerald-300/80'
-                    }`}
-                  >
-                    13 Ini - 12 Depan
-                    <span className="flex items-center justify-between text-[9px] font-normal opacity-90 mt-0.5">
-                      <span>Siklus 13 Ini</span>
-                      <span className="font-bold bg-white/30 px-1 py-0.2 rounded text-[10px]">{cycleCounts.cycle2.count} Data</span>
-                    </span>
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-4 gap-1.5 mt-1.5">
-                  <button
-                    type="button"
-                    onClick={() => { handlePreset('cycle21'); setIsDateDropdownOpen(false); }}
-                    className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border transition-all text-center active:scale-95 cursor-pointer ${
-                      activePreset === 'cycle21'
-                        ? 'bg-slate-800 text-white border-slate-800 font-extrabold'
-                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
-                    }`}
-                  >
-                    Siklus 21
-                  </button>
+                <div className="grid grid-cols-3 gap-1.5">
                   <button
                     type="button"
                     onClick={() => { handlePreset('month'); setIsDateDropdownOpen(false); }}
@@ -1094,7 +1053,21 @@ export const ReportTable: React.FC<ReportTableProps> = ({
               <tr className="bg-gradient-to-r from-slate-900 via-pegadaian-900 to-slate-900 text-white uppercase text-[11px] font-extrabold tracking-wider border-b-2 border-emerald-500/50">
                 <th className="py-3.5 px-3 w-12 text-center border-r border-slate-700/60">No</th>
                 <th className="py-3.5 px-4 min-w-[90px] border-r border-slate-700/60">Hari</th>
-                <th className="py-3.5 px-4 min-w-[105px] border-r border-slate-700/60">Tanggal</th>
+                <th
+                  aria-sort={dateSortOrder === 'asc' ? 'ascending' : 'descending'}
+                  className="py-3.5 px-4 min-w-[105px] border-r border-slate-700/60"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setDateSortOrder((order) => order === 'asc' ? 'desc' : 'asc')}
+                    aria-label={`Urutkan tanggal ${dateSortOrder === 'asc' ? 'menurun' : 'menaik'}`}
+                    title={`Urutkan tanggal ${dateSortOrder === 'asc' ? 'menurun' : 'menaik'}`}
+                    className="inline-flex items-center gap-1.5"
+                  >
+                    Tanggal
+                    {dateSortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+                  </button>
+                </th>
                 <th className="py-3.5 px-4 min-w-[130px] border-r border-slate-700/60">PIC Support</th>
                 <th className="py-3.5 px-4 min-w-[140px] border-r border-slate-700/60">Unit Kerja</th>
                 <th className="py-3.5 px-4 min-w-[130px] border-r border-slate-700/60">Nama User</th>
