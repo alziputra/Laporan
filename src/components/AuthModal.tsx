@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { KANWIL_LIST } from '@/types/user';
 import {
@@ -18,7 +18,8 @@ import {
   CheckCircle2,
   KeyRound,
   ArrowLeft,
-  Send
+  Send,
+  ChevronDown
 } from 'lucide-react';
 
 interface AuthModalProps {
@@ -43,6 +44,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isKanwilOpen, setIsKanwilOpen] = useState(false);
+  const kanwilPickerRef = useRef<HTMLDivElement>(null);
+  const kanwilTriggerRef = useRef<HTMLButtonElement>(null);
+  const kanwilOptionsRef = useRef<(HTMLButtonElement | null)[]>([]);
 
   // Form Fields
   const [nameOrEmail, setNameOrEmail] = useState('');
@@ -52,6 +57,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
+  useEffect(() => {
+    if (!isKanwilOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (kanwilPickerRef.current && !kanwilPickerRef.current.contains(event.target as Node)) {
+        setIsKanwilOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isKanwilOpen]);
+
+  useEffect(() => {
+    if (!isKanwilOpen) return;
+
+    const selectedIndex = KANWIL_LIST.findIndex((item) => item === kanwil);
+    if (selectedIndex >= 0) kanwilOptionsRef.current[selectedIndex]?.focus();
+  }, [isKanwilOpen, kanwil]);
+
   if (!isOpen) return null;
 
   const resetForm = () => {
@@ -59,6 +84,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setDisplayName('');
     setEmail('');
     setKanwil(KANWIL_LIST[0]);
+    setIsKanwilOpen(false);
     setPassword('');
     setConfirmPassword('');
     setErrorMsg(null);
@@ -67,6 +93,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleSwitchTab = (tab: 'login' | 'register' | 'forgot') => {
     setActiveTab(tab);
+    setIsKanwilOpen(false);
     setPassword('');
     setConfirmPassword('');
     setErrorMsg(null);
@@ -162,7 +189,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-bold tracking-tight">Portal Akses Support</h2>
-              <p className="text-xs text-emerald-100/90 font-medium">Sistem Laporan Desktop Support Pegadaian</p>
+              <p className="text-xs text-emerald-100/90 font-medium">Sistem Laporan Manage Service Pegadaian</p>
             </div>
           </div>
 
@@ -321,19 +348,80 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   Kantor Wilayah <span className="text-red-500">*</span>
                 </label>
-                <div className="relative">
-                  <MapPin className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 z-10" />
-                  <select
-                    value={kanwil}
-                    onChange={(e) => setKanwil(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-pegadaian-500/20 focus:border-pegadaian-600 transition-all appearance-none cursor-pointer"
+                <div className="relative" ref={kanwilPickerRef}>
+                  <MapPin className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 z-10 pointer-events-none" />
+                  <button
+                    ref={kanwilTriggerRef}
+                    type="button"
+                    aria-haspopup="listbox"
+                    aria-expanded={isKanwilOpen}
+                    onClick={() => setIsKanwilOpen((open) => !open)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                        event.preventDefault();
+                        setIsKanwilOpen(true);
+                      }
+                    }}
+                    className={`w-full flex items-center justify-between pl-10 pr-3 py-2.5 bg-slate-50 border rounded-xl text-xs font-semibold text-left text-slate-800 transition-all ${
+                      isKanwilOpen
+                        ? 'bg-white border-pegadaian-600 ring-2 ring-pegadaian-500/20'
+                        : 'border-slate-200 hover:border-emerald-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-pegadaian-500/20 focus:border-pegadaian-600'
+                    }`}
                   >
-                    {KANWIL_LIST.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
-                      </option>
-                    ))}
-                  </select>
+                    <span className="truncate">{kanwil}</span>
+                    <ChevronDown className={`w-4 h-4 ml-2 shrink-0 text-slate-400 transition-transform ${isKanwilOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {isKanwilOpen && (
+                    <div
+                      role="listbox"
+                      aria-label="Pilih Kantor Wilayah"
+                      onKeyDown={(event) => {
+                        if (event.key === 'Escape') {
+                          event.preventDefault();
+                          setIsKanwilOpen(false);
+                          kanwilTriggerRef.current?.focus();
+                        } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                          event.preventDefault();
+                          const focusedIndex = kanwilOptionsRef.current.indexOf(document.activeElement as HTMLButtonElement);
+                          const direction = event.key === 'ArrowDown' ? 1 : -1;
+                          const nextIndex = (focusedIndex + direction + KANWIL_LIST.length) % KANWIL_LIST.length;
+                          kanwilOptionsRef.current[nextIndex]?.focus();
+                        } else if (event.key === 'Home' || event.key === 'End') {
+                          event.preventDefault();
+                          const index = event.key === 'Home' ? 0 : KANWIL_LIST.length - 1;
+                          kanwilOptionsRef.current[index]?.focus();
+                        }
+                      }}
+                      className="absolute left-0 right-0 top-full z-30 mt-2 max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl shadow-slate-900/10 ring-1 ring-black/5"
+                    >
+                      {KANWIL_LIST.map((item, index) => {
+                        const selected = kanwil === item;
+
+                        return (
+                          <button
+                            key={item}
+                            ref={(element) => { kanwilOptionsRef.current[index] = element; }}
+                            type="button"
+                            role="option"
+                            aria-selected={selected}
+                            onClick={() => {
+                              setKanwil(item);
+                              setIsKanwilOpen(false);
+                              kanwilTriggerRef.current?.focus();
+                            }}
+                            className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-xs transition-colors ${
+                              selected
+                                ? 'bg-emerald-50 font-bold text-emerald-800'
+                                : 'font-medium text-slate-700 hover:bg-slate-50'
+                            } focus:bg-emerald-50 focus:outline-none`}
+                          >
+                            <span>{item}</span>
+                            {selected && <CheckCircle2 className="ml-3 h-4 w-4 shrink-0 text-emerald-600" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -421,14 +509,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
             </>
           )}
-
-          {/* Firestore Notice Badge */}
-          <div className="pt-1 flex items-center justify-between text-[11px] text-slate-500 font-medium bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-100/70">
-            <div className="flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>Data tersimpan di <strong className="text-emerald-700 font-semibold">Firestore (user-reports)</strong></span>
-            </div>
-          </div>
 
           {/* Action Button */}
           <button

@@ -81,7 +81,7 @@ export default function AdminPage() {
 
       {/* Footer */}
       <footer className="bg-white border-t border-slate-200 py-4 text-center text-xs font-semibold text-slate-600 pb-6">
-        <p>© 2026 Alzi Rahmana Putra - PT. Pegadaian Helpdesk Management</p>
+        <p>© 2026 Alzi Rahmana Putra</p>
       </footer>
 
       {/* Auth Modal */}

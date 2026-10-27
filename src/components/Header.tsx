@@ -78,18 +78,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuthModal, onOpenAdminPane
             <span>{currentDate}</span>
           </div>
 
-          {/* Database Connection Badge */}
-          <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-bold border backdrop-blur-md shadow-xs transition-all text-[11px] ${
-            isFirebaseConfigured 
-              ? 'bg-emerald-500/20 text-emerald-200 border-emerald-400/40' 
-              : 'bg-amber-500/20 text-amber-200 border-amber-400/40'
-          }`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${isFirebaseConfigured ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
-            <Database className="w-3 h-3 text-emerald-300" />
-            <span className="hidden md:inline">{isFirebaseConfigured ? 'Firestore Ready' : 'Local Storage Mode'}</span>
-            <span className="inline md:hidden">{isFirebaseConfigured ? 'Cloud' : 'Local'}</span>
-          </div>
-
           {/* Admin Panel Button (If User is Admin on Reports View) */}
           {userProfile && (isAdmin || userProfile.role === 'Admin') && activeView !== 'admin' && (
             <button
