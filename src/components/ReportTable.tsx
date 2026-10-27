@@ -75,6 +75,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [activePreset, setActivePreset] = useState<'cycle13' | 'cycle13_next' | 'month' | 'today' | '7days' | 'all' | 'custom'>('all');
+  const [missingDaysCycle, setMissingDaysCycle] = useState<'cycle21' | 'cycle13' | 'cycle13_next' | 'month' | 'last30'>('cycle21');
   const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
   const dateDropdownRef = useRef<HTMLDivElement>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -110,6 +111,10 @@ export const ReportTable: React.FC<ReportTableProps> = ({
   // Handle date presets (matches Export Laporan cycles)
   const handlePreset = (type: 'cycle13' | 'cycle13_next' | 'month' | 'today' | '7days' | 'all') => {
     setActivePreset(type);
+    if (type === 'cycle13' || type === 'cycle13_next') {
+      setMissingDaysCycle(type);
+    }
+
     const curr = new Date();
     const y = curr.getFullYear();
     const m = curr.getMonth(); // 0-indexed
@@ -305,7 +310,6 @@ export const ReportTable: React.FC<ReportTableProps> = ({
   }, [reports]);
 
   // Missing Workdays (Senin - Jumat) Monitoring
-  const [missingDaysCycle, setMissingDaysCycle] = useState<'cycle21' | 'cycle13' | 'month' | 'last30'>('cycle21');
   const [isMissingDaysModalOpen, setIsMissingDaysModalOpen] = useState(false);
 
   const missingWorkdays = useMemo(() => {
@@ -323,9 +327,10 @@ export const ReportTable: React.FC<ReportTableProps> = ({
       cycleStart = new Date(y, m - 1, 21);
       const cutOffEnd = new Date(y, m, 20);
       cycleEnd = today < cutOffEnd ? today : cutOffEnd;
-    } else if (missingDaysCycle === 'cycle13') {
-      cycleStart = new Date(y, m - 1, 13);
-      const cutOffEnd = new Date(y, m, 12);
+    } else if (missingDaysCycle === 'cycle13' || missingDaysCycle === 'cycle13_next') {
+      const isCurrentCycle = missingDaysCycle === 'cycle13_next';
+      cycleStart = new Date(y, isCurrentCycle ? m : m - 1, 13);
+      const cutOffEnd = new Date(y, isCurrentCycle ? m + 1 : m, 12);
       cycleEnd = today < cutOffEnd ? today : cutOffEnd;
     } else if (missingDaysCycle === 'month') {
       cycleStart = new Date(y, m, 1);
@@ -1385,7 +1390,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({
                   <Sparkles className="w-3.5 h-3.5 text-amber-600" />
                   <span>Periode Pengecekan:</span>
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                   <button
                     type="button"
                     onClick={() => setMissingDaysCycle('cycle21')}
@@ -1407,6 +1412,17 @@ export const ReportTable: React.FC<ReportTableProps> = ({
                     }`}
                   >
                     13 Lalu - 12 Ini
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMissingDaysCycle('cycle13_next')}
+                    className={`py-2 px-1.5 sm:px-2 rounded-xl text-xs font-black transition-all border text-center active:scale-95 cursor-pointer ${
+                      missingDaysCycle === 'cycle13_next'
+                        ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                        : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    13 Ini - 12 Depan
                   </button>
                   <button
                     type="button"

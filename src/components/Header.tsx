@@ -146,7 +146,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuthModal, onOpenAdminPane
               </button>
               <button
                 onClick={() => onOpenAuthModal && onOpenAuthModal('register')}
-                className="flex items-center gap-1 px-2.5 py-1.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-lg border border-white/20 transition-all text-xs active:scale-95 hidden sm:flex"
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-lg border border-white/20 transition-all text-xs active:scale-95 sm:flex"
               >
                 <User className="w-3.5 h-3.5 text-emerald-300" />
                 <span>Daftar</span>
