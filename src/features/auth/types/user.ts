@@ -44,11 +44,6 @@ export interface LoginPayload {
   password: string;
 }
 
-export interface DirectResetPayload {
-  email: string;
-  newPassword: string;
-}
-
 export interface AdminUserSavePayload {
   uid?: string;
   displayName: string;

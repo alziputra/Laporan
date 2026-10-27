@@ -22,8 +22,8 @@ import {
   Calendar,
   Sparkles
 } from 'lucide-react';
-import { UnitActionRecommendation, ChronicUnitsSummary, ChronicIssueType } from '@/utils/chronicIssueDetection';
-import { formatDateFormatted } from '@/utils/exportUtils';
+import { UnitActionRecommendation, ChronicUnitsSummary, ChronicIssueType } from '@/features/reports/utils/chronicIssueDetection';
+import { formatDateFormatted } from '@/features/reports/utils/exportUtils';
 
 interface ChronicIssuesModalProps {
   isOpen: boolean;

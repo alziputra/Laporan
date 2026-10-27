@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Header } from '@/components/Header';
-import { AdminUserManagement } from '@/components/AdminUserManagement';
-import { AuthModal } from '@/components/AuthModal';
-import { useAuth } from '@/context/AuthContext';
+import { Header } from '@/components/shared/Header';
+import { AdminUserManagement } from '@/features/admin/components/AdminUserManagement';
+import { AuthModal } from '@/features/auth/components/AuthModal';
+import { useAuth } from '@/features/auth/context/AuthContext';
 import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export default function AdminPage() {
@@ -31,14 +31,14 @@ export default function AdminPage() {
     if (!loading) {
       if (!userProfile) {
         router.replace('/');
-      } else if (userProfile.role !== 'Admin' && !isAdmin) {
+      } else if (!isAdmin) {
         router.replace('/');
       }
     }
   }, [userProfile, isAdmin, loading, router]);
 
   // If still checking auth or non-admin is being redirected, display clean loading state
-  if (loading || !userProfile || (userProfile.role !== 'Admin' && !isAdmin)) {
+  if (loading || !userProfile || !isAdmin) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
         <Loader2 className="w-8 h-8 animate-spin text-pegadaian-600 mb-2" />

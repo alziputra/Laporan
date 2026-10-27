@@ -1,10 +1,11 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { UserProfile, LoginPayload, RegisterPayload } from '@/types/user';
-import { authService } from '@/services/authService';
+import { UserProfile, LoginPayload, RegisterPayload } from '@/features/auth/types/user';
+import { authService } from '@/features/auth/services/authService';
 import { auth, isFirebaseConfigured } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
+import { isAdminRole } from '@/features/auth/utils/authorization';
 
 interface AuthContextType {
   userProfile: UserProfile | null;
@@ -13,7 +14,6 @@ interface AuthContextType {
   login: (payload: LoginPayload) => Promise<UserProfile>;
   register: (payload: RegisterPayload) => Promise<UserProfile>;
   resetPasswordEmail: (email: string) => Promise<void>;
-  resetPasswordDirectly: (payload: { email: string; newPassword: string }) => Promise<void>;
   refreshUserProfile: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -40,19 +40,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
 
-    if (isFirebaseConfigured && auth) {
-      unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-        if (firebaseUser) {
-          await fetchProfile(firebaseUser.uid);
-        } else {
-          setUserProfile(null);
-        }
+    if (isFirebaseConfigured) {
+      if (auth) {
+        unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+          if (firebaseUser) {
+            await fetchProfile(firebaseUser.uid);
+          } else {
+            setUserProfile(null);
+          }
+          setLoading(false);
+        });
+      } else {
+        console.error('Firebase is configured but Authentication failed to initialize.');
+        setUserProfile(null);
         setLoading(false);
-      });
-    } else {
+      }
+    } else if (process.env.NODE_ENV !== 'production') {
       // Local Mode Session Check
       const session = authService.getCurrentSession();
       setUserProfile(session);
+      setLoading(false);
+    } else {
+      setUserProfile(null);
       setLoading(false);
     }
 
@@ -131,24 +140,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await authService.resetPasswordEmail(email);
   };
 
-  const resetPasswordDirectly = async (payload: { email: string; newPassword: string }): Promise<void> => {
-    await authService.resetPasswordDirectly(payload);
-  };
-
   const logout = async (): Promise<void> => {
     await authService.logout();
     setUserProfile(null);
   };
 
-  // Check if role is admin or email includes admin
-  const isAdmin = Boolean(
-    userProfile && (
-      userProfile.role === 'Admin' ||
-      userProfile.role === 'Supervisor' ||
-      userProfile.role === 'Super Admin' ||
-      userProfile.email.toLowerCase().startsWith('admin')
-    )
-  );
+  const isAdmin = isAdminRole(userProfile?.role);
 
   return (
     <AuthContext.Provider value={{
@@ -158,7 +155,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       login,
       register,
       resetPasswordEmail,
-      resetPasswordDirectly,
       refreshUserProfile,
       logout
     }}>

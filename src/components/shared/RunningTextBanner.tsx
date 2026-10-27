@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/features/auth/context/AuthContext';
 import { ShieldCheck, Info, Clock, AlertCircle } from 'lucide-react';
 
 export const RunningTextBanner: React.FC = () => {

@@ -1,0 +1,70 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/user-reports/$(request.auth.uid))
+        && get(/databases/$(database)/documents/user-reports/$(request.auth.uid)).data.role
+          in ['Admin', 'Super Admin'];
+    }
+
+    match /user-reports/{userId} {
+      allow get: if signedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+
+      allow create: if isAdmin()
+        || (
+          signedIn()
+          && request.auth.uid == userId
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.role == 'Desktop Support'
+        );
+
+      allow update: if isAdmin()
+        || (
+          signedIn()
+          && request.auth.uid == userId
+          && request.resource.data.uid == resource.data.uid
+          && request.resource.data.role == resource.data.role
+        );
+
+      allow delete: if isAdmin() && request.auth.uid != userId;
+
+      match /reports/{reportId} {
+        allow read: if isAdmin()
+          || (signedIn() && request.auth.uid == userId);
+
+        allow create: if isAdmin()
+          || (
+            signedIn()
+            && request.auth.uid == userId
+            && request.resource.data.userId == userId
+          );
+
+        allow update: if isAdmin()
+          || (
+            signedIn()
+            && request.auth.uid == userId
+            && resource.data.userId == userId
+            && request.resource.data.userId == userId
+          );
+
+        allow delete: if isAdmin()
+          || (
+            signedIn()
+            && request.auth.uid == userId
+            && resource.data.userId == userId
+          );
+      }
+    }
+
+    match /reports/{reportId} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

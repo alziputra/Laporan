@@ -2,16 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Header } from '@/components/Header';
-import { ReportTable } from '@/components/ReportTable';
-import { ReportFormModal } from '@/components/ReportFormModal';
-import { ExportModal } from '@/components/ExportModal';
-import { ReportDetailModal } from '@/components/ReportDetailModal';
-import { AuthModal } from '@/components/AuthModal';
-import { Toast } from '@/components/Toast';
-import { reportsService } from '@/services/reportsService';
-import { DailyReport, ReportCategory } from '@/types/report';
-import { useAuth } from '@/context/AuthContext';
+import { Header } from '@/components/shared/Header';
+import { Toast } from '@/components/shared/Toast';
+import { ReportTable } from '@/features/reports/components/ReportTable';
+import { ReportFormModal } from '@/features/reports/components/ReportFormModal';
+import { ExportModal } from '@/features/reports/components/ExportModal';
+import { ReportDetailModal } from '@/features/reports/components/ReportDetailModal';
+import { AuthModal } from '@/features/auth/components/AuthModal';
+import { reportsService } from '@/features/reports/services/reportsService';
+import { DailyReport, ReportCategory } from '@/features/reports/types/report';
+import { useAuth } from '@/features/auth/context/AuthContext';
 import { Loader2 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -46,12 +46,11 @@ export default function DashboardPage() {
     setIsAuthOpen(true);
   };
 
-  const loadReports = async (uid?: string, name?: string) => {
+  const loadReports = async (uid?: string) => {
     try {
       setLoading(true);
       const targetUid = uid !== undefined ? uid : userProfile?.uid;
-      const targetName = name !== undefined ? name : userProfile?.displayName;
-      const data = await reportsService.getAllReports(targetUid, targetName);
+      const data = await reportsService.getAllReports(targetUid);
       setReports(data);
     } catch (err) {
       console.error(err);
@@ -65,12 +64,12 @@ export default function DashboardPage() {
     if (!authLoading) {
       if (userProfile) {
         // If user is Admin, automatically redirect to /admin
-        if (userProfile.role === 'Admin' || isAdmin) {
+        if (isAdmin) {
           router.replace('/admin');
           return;
         }
         // If user is regular Desktop Support / Supervisor, stay on / and load reports
-        loadReports(userProfile.uid, userProfile.displayName);
+        loadReports(userProfile.uid);
       } else {
         setAuthInitialTab('login');
         setIsAuthOpen(true);
@@ -89,7 +88,7 @@ export default function DashboardPage() {
       await reportsService.createReport(reportData, userProfile?.uid);
       showToast('Laporan pekerjaan baru berhasil disimpan!');
     }
-    await loadReports(userProfile?.uid, userProfile?.displayName);
+    await loadReports(userProfile?.uid);
     setEditingReport(null);
   };
 
@@ -97,7 +96,7 @@ export default function DashboardPage() {
   const handleDeleteReport = async (id: string) => {
     await reportsService.deleteReport(id, userProfile?.uid);
     showToast('Laporan berhasil dihapus');
-    await loadReports(userProfile?.uid, userProfile?.displayName);
+    await loadReports(userProfile?.uid);
   };
 
   // Open edit modal
@@ -138,11 +137,11 @@ export default function DashboardPage() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 md:px-8 py-3.5 sm:py-6 pb-24 md:pb-6">
-        {authLoading || (userProfile && (userProfile.role === 'Admin' || isAdmin)) ? (
+        {authLoading || (userProfile && isAdmin) ? (
           <div className="py-24 flex flex-col items-center justify-center space-y-3">
             <Loader2 className="w-8 h-8 animate-spin text-pegadaian-600" />
             <p className="text-xs font-semibold text-slate-500">
-              {userProfile?.role === 'Admin' || isAdmin
+              {isAdmin
                 ? 'Mengarahkan ke Halaman Admin...'
                 : 'Memuat sesi pengguna...'}
             </p>

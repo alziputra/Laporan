@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { KANWIL_LIST } from '@/types/user';
+import { useAuth } from '@/features/auth/context/AuthContext';
+import { KANWIL_LIST } from '@/features/auth/types/user';
 import {
   X,
   Lock,

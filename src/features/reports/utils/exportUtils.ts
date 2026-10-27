@@ -1,4 +1,4 @@
-import { DailyReport } from '@/types/report';
+import { DailyReport } from '@/features/reports/types/report';
 import XLSX from 'xlsx-js-style';
 
 // SLA Calculator: HH:MM:SS format

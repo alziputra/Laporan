@@ -45,8 +45,9 @@ Halaman khusus manajemen dan monitoring tingkat eksekutif dengan 3 tab navigasi 
   * **Kartu KPI Dinamis**: Total Laporan, Laporan Hari Ini, Rata-Rata Durasi SLA, dan Petugas Terlibat.
   * **Mode Tinjauan Read-Only**: Admin dapat meninjau detail tiket dengan proteksi anti-hapus dan anti-edit.
 * **👥 Tab 3: Manajemen Pengguna & Hak Akses**
-  * Pengelolaan akun (*Super Admin, Admin, Supervisor, Desktop Support*).
-  * Quick Role Changer & Direct Password Reset.
+  * Pengelolaan profil dan role pengguna.
+  * Quick Role Changer & pengiriman email reset password.
+  * Pembuatan akun Firebase baru harus dilakukan melalui backend tepercaya/Admin SDK; fitur tersebut belum tersedia di UI.
   * Filter pencarian NIK, Nama, Email, Unit Kerja, dan Kantor Wilayah (Kanwil I - XII + Kantor Pusat).
   * Export data master pengguna ke Excel.
 
@@ -100,7 +101,8 @@ Halaman kerja harian personil IT Support di lapangan:
 * **Silent Role Guard**:
   * Akun dengan peran **Admin** yang login di `/` otomatis diarahkan (*silent redirect*) ke `/admin`.
   * Akun non-admin yang mencoba mengakses `/admin` otomatis dialihkan ke `/` tanpa memunculkan layar error.
-* Sinkronisasi data real-time berbasis Firebase Firestore dengan *fallback* aman ke LocalStorage saat mode offline / tanpa koneksi cloud.
+* Role `Admin`/`Super Admin` diperiksa pada UI dan dibatasi lagi oleh Firestore Security Rules. `Supervisor` saat ini belum mendapat akses ke panel admin nasional.
+* LocalStorage fallback hanya untuk development/demo lokal dan bukan mekanisme penyimpanan atau autentikasi yang aman.
 
 ---
 
@@ -132,6 +134,22 @@ NEXT_PUBLIC_FIREBASE_APP_ID=your-app-id
 ```bash
 npm run dev
 ```
+
+### 5. Deploy Firestore Security Rules
+Setelah meninjau dan menguji `firestore.rules` dengan Firebase Emulator:
+```bash
+firebase deploy --only firestore:rules
+```
+
+Bootstrap administrator pertama melalui Firebase Console: buat user di Firebase Authentication, lalu buat dokumen `user-reports/{uid}` dengan `role: "Admin"`. Jangan memberi role admin melalui alur registrasi publik.
+
+### 6. Jalankan tes dan pemeriksaan tipe
+```bash
+npm test
+npx tsc --noEmit
+```
+
+Data lama pada koleksi root `reports` hanya dapat diakses admin hingga dimigrasikan ke `user-reports/{uid}/reports`.
 
 Buka browser di:
 * Dashboard Petugas IT: [http://localhost:3000](http://localhost:3000)

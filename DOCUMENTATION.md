@@ -39,8 +39,8 @@ Divisi Operasional TI (OITI) PT. Pegadaian membutuhkan sistem pelaporan pekerjaa
 | Role / Peran | Deskripsi Akses | Route Utama | Tindakan Utama |
 | :--- | :--- | :---: | :--- |
 | **Desktop Support** | Personil teknisi lapangan di Kanwil/Cabang | `/` | Membuat, mengedit, menghapus laporan miliknya, mencari tiket, serta ekspor Excel laporan pribadi. |
-| **Supervisor** | Pengawas operasional wilayah | `/` & `/admin` | Memantau seluruh tiket di wilayahnya, melihat statistik SLA, dan mengunduh laporan tim. |
-| **Admin / Super Admin** | Pengelola sistem & manajemen nasional | `/admin` | Memantau laporan nasional, filter 2-arah petugas & kanwil, manajemen akun pengguna, reset password, dan ekspor master data. |
+| **Supervisor** | Pengawas operasional wilayah | `/` | Saat ini menggunakan dashboard laporan pribadi. Akses monitoring tim berbasis Kanwil belum tersedia. |
+| **Admin / Super Admin** | Pengelola sistem & manajemen nasional | `/admin` | Memantau laporan nasional, mengelola profil dan role, mengirim email reset password, dan mengekspor data. |
 
 ---
 
@@ -71,14 +71,14 @@ Divisi Operasional TI (OITI) PT. Pegadaian membutuhkan sistem pelaporan pekerjaa
                ▼                  ▼                ▼
      ┌───────────────────┐ ┌─────────────┐ ┌───────────────┐
      │ Firebase Auth     │ │ Firestore   │ │ XLSX Generator│
-     │ / Local Fallback  │ │ Database    │ │ (.xlsx File)  │
+     │ (dev local only)  │ │ + Rules     │ │ (.xlsx File)  │
      └───────────────────┘ └─────────────┘ └───────────────┘
 ```
 
 ### 3.1 Stack Teknologi
 * **Framework**: Next.js 14.2 (React 18, TypeScript)
 * **Styling**: Tailwind CSS dengan custom design system Pegadaian (warna hijau korporat `#107C41`, `#2E7D32`, aksen emas `#F59E0B`, dan dark slate `#0F172A`)
-* **Database & Auth**: Firebase Firestore & Firebase Authentication (dengan otomatisasi *Local Storage Fallback Mode* saat offline)
+* **Database & Auth**: Firebase Firestore & Firebase Authentication. LocalStorage fallback hanya tersedia untuk development dan tidak boleh dipakai sebagai backend produksi.
 * **Spreadsheet Engine**: `xlsx` (SheetJS)
 * **Icons & Typografi**: Lucide React & Plus Jakarta Sans (Google Fonts)
 * **Date Utilities**: Date-fns
@@ -89,43 +89,42 @@ Divisi Operasional TI (OITI) PT. Pegadaian membutuhkan sistem pelaporan pekerjaa
 
 ```
 ├── public/                     # Aset statis (logo Pegadaian, preview gambar)
+├── firestore.rules                 # Otorisasi server-side Firestore
+├── firebase.json                   # Menghubungkan project ke aturan Firestore
 ├── src/
-│   ├── app/
-│   │   ├── admin/
-│   │   │   └── page.tsx        # Halaman Admin Control Center & Analytics
-│   │   ├── globals.css         # Styling global, scrollbar kustom, animasi marquee
-│   │   ├── layout.tsx          # Root layout membungkus AuthProvider
-│   │   └── page.tsx            # Halaman Dashboard Petugas Desktop Support
+│   ├── app/                        # Next.js routes: dashboard pengguna & admin
 │   ├── components/
-│   │   ├── AdminUserManagement.tsx # Komponen Tab 3 Admin (Kelola Pengguna)
-│   │   ├── AdminUserModal.tsx      # Modal Buat/Edit Pengguna oleh Admin
-│   │   ├── AuthModal.tsx           # Modal Login, Register, & Lupa Password
-│   │   ├── ConfirmModal.tsx        # Modal Konfirmasi Hapus Data
-│   │   ├── ExportModal.tsx         # Modal Konfigurasi Siklus Export Excel
-│   │   ├── Header.tsx              # Navigasi atas + status database + tombol akun
-│   │   ├── ReportDetailModal.tsx   # Modal detail laporan read-only
-│   │   ├── ReportFormModal.tsx     # Modal input/edit laporan tiket + SLA auto
-│   │   ├── ReportTable.tsx         # Tabel laporan harian, filter kategori, search
-│   │   ├── RunningTextBanner.tsx   # Banner teks berjalan keamanan & info sesi
-│   │   └── Toast.tsx               # Notifikasi toast mengambang
-│   ├── context/
-│   │   └── AuthContext.tsx         # Global Context Auth, Inactivity Timer & Sync
-│   ├── lib/
-│   │   └── firebase.ts             # Inisialisasi Firebase App, Auth, & Firestore
-│   ├── services/
-│   │   ├── authService.ts          # Layanan autentikasi, registrasi & CRUD user
-│   │   ├── excelService.ts         # Engine pembuatan multi-sheet XLSX
-│   │   └── reportsService.ts       # CRUD operasi laporan harian
-│   ├── types/
-│   │   ├── report.ts               # Tipe data DailyReport, Category, Status, SLA
-│   │   └── user.ts                 # Tipe data UserProfile, Payload Auth & Kanwil
-│   └── utils/                      # Helper pemformatan tanggal, waktu & durasi
+│   │   └── shared/                 # Header, toast, banner, modal bersama
+│   ├── features/
+│   │   ├── admin/
+│   │   │   └── components/         # Container admin dan UI per tab
+│   │   ├── auth/
+│   │   │   ├── components/
+│   │   │   ├── context/
+│   │   │   ├── services/
+│   │   │   ├── types/
+│   │   │   └── utils/              # Kebijakan role
+│   │   └── reports/
+│   │       ├── components/
+│   │       ├── services/
+│   │       ├── types/
+│   │       └── utils/
+│   └── lib/
+│       └── firebase.ts             # Inisialisasi Firebase client
 ├── package.json
-├── tailwind.config.js
-├── tsconfig.json
-├── README.md
-└── DOCUMENTATION.md
+└── tsconfig.json
 ```
+
+### 4.1 Otorisasi Firestore
+`firestore.rules` adalah batas keamanan data yang otoritatif; pemeriksaan role pada halaman hanya mengatur tampilan dan navigasi. Aturan mengizinkan pengguna membaca dan mengubah laporan di subkoleksi UID mereka sendiri, sementara daftar profil, laporan nasional, dan koleksi legacy `/reports` memerlukan role `Admin` atau `Super Admin`.
+
+Sebelum rilis:
+1. Pastikan Firebase Authentication dan Firestore aktif serta konfigurasi environment tersedia.
+2. Buat akun administrator melalui Firebase Authentication, lalu buat dokumen `user-reports/{uid}` dari Firebase Console dengan `role: "Admin"` (bootstrap pertama).
+3. Tinjau dan deploy aturan dengan Firebase CLI: `firebase deploy --only firestore:rules`.
+4. Jalankan pengujian aturan menggunakan Firebase Emulator sebelum perubahan rules dipromosikan ke produksi.
+
+Pembuatan akun Firebase baru dan perubahan password langsung memerlukan backend tepercaya/Admin SDK; UI saat ini menolak pembuatan akun baru di Firebase dan hanya mengirim email reset password. Data lama di koleksi root `/reports` hanya dapat diakses admin sampai dimigrasikan ke `user-reports/{uid}/reports`.
 
 ---
 
@@ -139,12 +138,12 @@ Divisi Operasional TI (OITI) PT. Pegadaian membutuhkan sistem pelaporan pekerjaa
   * Jika durasi 30 menit terlampaui tanpa aktivitas, sistem otomatis memanggil fungsi `logout()`, membersihkan sesi, dan mengarahkan pengguna ke form login secara hening tanpa dialog pop-up yang mengganggu alur kerja.
 * **Sinkronisasi Multi-Tab**:
   * Menggunakan pembacaan `localStorage` real-time, memastikan bahwa jika personil aktif di satu tab, sesi di tab lain tidak akan kedaluwarsa secara mendadak.
-* **Dual-Mode Persistence**:
-  * **Online**: Menggunakan Firebase Authentication token dan Firestore collection `user-reports`.
-  * **Offline/Local Mode**: Menggunakan `localStorage` (`pegadaian_current_user_v1`) sehingga aplikasi tetap 100% fungsional saat demo atau tanpa internet.
+* **Mode persistence**:
+  * **Produksi**: Wajib menggunakan Firebase Authentication dan Firestore. Kegagalan layanan tidak dialihkan ke data lokal.
+  * **Development**: LocalStorage fallback dapat dipakai untuk demo lokal, tetapi bukan mekanisme autentikasi atau penyimpanan yang aman.
 
 ### 5.2 Running Text Banner Dinamis
-* **Lokasi**: Terpasang tetap di bawah bar navigasi utama ([Header.tsx](./src/components/Header.tsx)).
+* **Lokasi**: Terpasang tetap di bawah bar navigasi utama ([Header.tsx](./src/components/shared/Header.tsx)).
 * **Konten Berjalan**:
   1. *Keamanan Sesi*: Pengingat proteksi Auto-Logout 30 menit.
   2. *Personil Aktif*: Sapaan dinamis mencantumkan `Nama Lengkap`, `Role`, dan `Kantor Wilayah / Unit Kerja`.
@@ -170,7 +169,8 @@ Divisi Operasional TI (OITI) PT. Pegadaian membutuhkan sistem pelaporan pekerjaa
   * Filter 2-Arah: Memilih Petugas otomatis mengunci Kanwil miliknya, dan memilih Kanwil menyaring daftar petugas di kanwil tersebut.
   * Dynamic category badge counters (angka pada tab kategori diperbarui secara live mengikuti filter yang diterapkan).
 * **Tab 3: Manajemen Pengguna**:
-  * Tambah/edit data personil, ganti role langsung, reset password pengguna, dan filter pencarian terintegrasi.
+  * Edit profil dan ganti role langsung; reset password mengirim tautan email Firebase.
+  * Pembuatan, penghapusan akun Firebase, serta perubahan email akun memerlukan backend tepercaya/Admin SDK dan belum dilakukan oleh UI.
 
 ### 5.5 Engine Export Multi-Sheet Excel
 * **Siklus Cut-Off Laporan**:
@@ -185,7 +185,7 @@ Divisi Operasional TI (OITI) PT. Pegadaian membutuhkan sistem pelaporan pekerjaa
 
 ## 6. SKEMA DATA & TYPE DEFINITIONS
 
-### 6.1 `DailyReport` ([src/types/report.ts](./src/types/report.ts))
+### 6.1 `DailyReport` ([src/features/reports/types/report.ts](./src/features/reports/types/report.ts))
 ```typescript
 export interface DailyReport {
   id?: string;
@@ -208,7 +208,7 @@ export interface DailyReport {
 }
 ```
 
-### 6.2 `UserProfile` ([src/types/user.ts](./src/types/user.ts))
+### 6.2 `UserProfile` ([src/features/auth/types/user.ts](./src/features/auth/types/user.ts))
 ```typescript
 export interface UserProfile {
   uid: string;
@@ -227,23 +227,27 @@ export interface UserProfile {
 
 ## 7. DOKUMENTASI SERVICE LAYER
 
-### 7.1 `authService` ([src/services/authService.ts](./src/services/authService.ts))
-* `register(payload)`: Membuat akun baru di Firebase Auth dan dokumen Firestore `user-reports` (atau `localStorage`).
+### 7.1 `authService` ([src/features/auth/services/authService.ts](./src/features/auth/services/authService.ts))
+* `register(payload)`: Membuat akun baru di Firebase Auth dan profil `user-reports` (atau mode demo lokal).
 * `login(payload)`: Masuk menggunakan email atau nama lengkap.
 * `getUserProfile(uid)`: Mengambil profil lengkap pengguna.
-* `getAllUsers()`: Mengambil daftar seluruh personil terdaftar untuk Admin Panel.
-* `adminSaveUser(payload)`: Menambah atau memperbarui profil personil dari sisi admin.
+* `assertAdminAccess()`: Memeriksa role admin dari profil Firestore sebelum operasi administratif.
+* `getAllUsers()`: Mengambil daftar personil hanya untuk Admin/Super Admin.
+* `adminSaveUser(payload)`: Memperbarui profil. Pembuatan akun dan perubahan email Firebase perlu backend/Admin SDK.
 * `adminUpdateRole(uid, newRole)`: Mengubah peran akun secara instan.
+* `adminResetPasswordEmail(email)`: Mengirim tautan reset melalui Firebase Authentication.
+* `adminDeleteUser(uid)`: Penghapusan akun Firebase belum tersedia di client dan harus dilakukan backend/Admin SDK.
 * `logout()`: Membersihkan sesi Firebase dan menghapus timestamp aktivitas lokal.
 
-### 7.2 `reportsService` ([src/services/reportsService.ts](./src/services/reportsService.ts))
-* `getAllReports(uid?, name?)`: Mengambil daftar laporan (jika user non-admin, hanya mengambil laporan miliknya).
-* `createReport(reportData, uid?)`: Menyimpan laporan baru ke Firestore/LocalStorage.
-* `updateReport(id, reportData, uid?)`: Memperbarui isi laporan yang sudah ada.
+### 7.2 `reportsService` ([src/features/reports/services/reportsService.ts](./src/features/reports/services/reportsService.ts))
+* `getAllReports(uid?)`: Mengambil laporan milik UID aktif.
+* `getAllUsersReports(users)`: Mengambil laporan nasional setelah memeriksa role admin; Firestore Rules tetap menjadi pengaman otoritatif.
+* `createReport(reportData, uid?)`: Menyimpan laporan di subkoleksi UID.
+* `updateReport(id, reportData, uid?)`: Memperbarui laporan yang sudah ada.
 * `deleteReport(id, uid?)`: Menghapus laporan.
 
-### 7.3 `excelService` ([src/services/excelService.ts](./src/services/excelService.ts))
-* `exportReportsToExcel(reports, cycleName, officerName?)`: Mengonversi daftar data array laporan menjadi workbook Excel `.xlsx` multi-sheet berformat resmi PT. Pegadaian.
+### 7.3 Export utilities ([src/features/reports/utils/exportUtils.ts](./src/features/reports/utils/exportUtils.ts))
+* `exportToExcel(reports, startDate, endDate)`: Mengonversi laporan terpilih menjadi workbook Excel `.xlsx`.
 
 ---
 

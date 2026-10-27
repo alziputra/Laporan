@@ -4,8 +4,8 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Database, Clock, User, LogOut, LogIn, ShieldCheck } from 'lucide-react';
 import { isFirebaseConfigured } from '@/lib/firebase';
-import { useAuth } from '@/context/AuthContext';
-import { RunningTextBanner } from '@/components/RunningTextBanner';
+import { useAuth } from '@/features/auth/context/AuthContext';
+import { RunningTextBanner } from '@/components/shared/RunningTextBanner';
 
 interface HeaderProps {
   onOpenAuthModal?: (tab?: 'login' | 'register') => void;
@@ -79,7 +79,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuthModal, onOpenAdminPane
           </div>
 
           {/* Admin Panel Button (If User is Admin on Reports View) */}
-          {userProfile && (isAdmin || userProfile.role === 'Admin') && activeView !== 'admin' && (
+          {userProfile && isAdmin && activeView !== 'admin' && (
             <button
               onClick={handleAdminClick}
               className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-xl font-extrabold text-[11px] sm:text-xs shadow-xs transition-all active:scale-95 border bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white border-amber-400/50"

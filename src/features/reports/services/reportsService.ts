@@ -1,5 +1,6 @@
-import { DailyReport } from '@/types/report';
+import { DailyReport } from '@/features/reports/types/report';
 import { db, isFirebaseConfigured } from '@/lib/firebase';
+import { authService } from '@/features/auth/services/authService';
 import {
   collection,
   getDocs,
@@ -7,11 +8,16 @@ import {
   updateDoc,
   deleteDoc,
   doc,
-  setDoc
 } from 'firebase/firestore';
 
 const LOCAL_STORAGE_KEY = 'pegadaian_desktop_support_reports_v2';
 const USER_REPORTS_COLLECTION = 'user-reports';
+
+const requireFirebaseInProduction = (): void => {
+  if (process.env.NODE_ENV === 'production' && !isFirebaseConfigured) {
+    throw new Error('Firebase wajib dikonfigurasi untuk data laporan produksi.');
+  }
+};
 
 // Helper to get local data
 const getLocalReports = (): DailyReport[] => {
@@ -36,7 +42,9 @@ const saveLocalReports = (reports: DailyReport[]) => {
 
 export const reportsService = {
   // Fetch reports from subcollection: user-reports/{userId}/reports
-  async getAllReports(userId?: string, displayName?: string): Promise<DailyReport[]> {
+  async getAllReports(userId?: string): Promise<DailyReport[]> {
+    requireFirebaseInProduction();
+
     if (!userId) {
       return []; // Data kosong jika belum login
     }
@@ -52,97 +60,66 @@ export const reportsService = {
           data.push({ id: docSnap.id, userId, ...docSnap.data() } as DailyReport);
         });
 
-        if (data.length > 0) {
-          data.sort((a, b) => (Number(b.createdAt || 0) - Number(a.createdAt || 0)));
-          return data;
-        }
-
-        // 2. If subcollection is empty, check root 'reports' collection for legacy migration for this user
-        if (displayName) {
-          const rootReportsRef = collection(db, 'reports');
-          const rootSnap = await getDocs(rootReportsRef);
-          const migratedData: DailyReport[] = [];
-
-          for (const docSnap of rootSnap.docs) {
-            const item = { id: docSnap.id, ...docSnap.data() } as DailyReport;
-            const pic = (item.picSupport || '').toLowerCase();
-            const name = displayName.toLowerCase();
-            const isAlzi = name.includes('alzi') && (pic.includes('alzi') || pic.includes('kanwil viii'));
-            const isMatch = isAlzi || pic.includes(name) || name.includes(pic);
-
-            if (isMatch) {
-              const newReportData: DailyReport = {
-                ...item,
-                userId,
-                createdAt: item.createdAt || Date.now(),
-                updatedAt: Date.now()
-              };
-              // Save document inside user-reports/{userId}/reports/{docId}
-              await setDoc(doc(db, USER_REPORTS_COLLECTION, userId, 'reports', docSnap.id), newReportData);
-              migratedData.push(newReportData);
-            }
-          }
-
-          if (migratedData.length > 0) {
-            migratedData.sort((a, b) => (Number(b.createdAt || 0) - Number(a.createdAt || 0)));
-            return migratedData;
-          }
-        }
-
-        return [];
+        data.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+        return data;
       } catch (err) {
-        console.error("Firestore get subcollection error, falling back to local:", err);
+        console.error("Firestore get subcollection error:", err);
+        throw err;
       }
+    }
+
+    if (isFirebaseConfigured) {
+      throw new Error('Firestore tidak tersedia; data lokal tidak digunakan sebagai pengganti.');
     }
 
     // Local Storage Fallback
     const allLocal = getLocalReports();
-    return allLocal.filter((r) => r.userId === userId || (!r.userId && displayName && r.picSupport?.toLowerCase().includes(displayName.toLowerCase())));
+    return allLocal.filter((report) => report.userId === userId);
   },
 
   // Admin feature: Fetch all reports across all registered users
   async getAllUsersReports(users: { uid: string; displayName?: string }[]): Promise<DailyReport[]> {
-    if (isFirebaseConfigured && db && users.length > 0) {
-      try {
-        const promises = users.map(async (u) => {
-          const userSubcollectionRef = collection(db, USER_REPORTS_COLLECTION, u.uid, 'reports');
-          const snapshot = await getDocs(userSubcollectionRef);
-          const data: DailyReport[] = [];
-          snapshot.forEach((docSnap) => {
-            data.push({ id: docSnap.id, userId: u.uid, ...docSnap.data() } as DailyReport);
-          });
-          return data;
-        });
+    requireFirebaseInProduction();
+    await authService.assertAdminAccess();
 
-        const results = await Promise.all(promises);
-        const allReports = results.flat();
-        
-        if (allReports.length > 0) {
-          allReports.sort((a, b) => (Number(b.createdAt || 0) - Number(a.createdAt || 0)));
-          return allReports;
-        }
-
-        // Check root collection if subcollections are empty
-        const rootSnap = await getDocs(collection(db, 'reports'));
-        const rootData: DailyReport[] = [];
-        rootSnap.forEach((d) => {
-          rootData.push({ id: d.id, ...d.data() } as DailyReport);
-        });
-        if (rootData.length > 0) {
-          rootData.sort((a, b) => (Number(b.createdAt || 0) - Number(a.createdAt || 0)));
-          return rootData;
-        }
-      } catch (err) {
-        console.error("Failed to fetch all users reports from Firestore, reading local:", err);
+    if (isFirebaseConfigured) {
+      if (!db) {
+        throw new Error('Firestore tidak tersedia.');
       }
+
+      const promises = users.map(async (user) => {
+        const userSubcollectionRef = collection(db, USER_REPORTS_COLLECTION, user.uid, 'reports');
+        const snapshot = await getDocs(userSubcollectionRef);
+        return snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          userId: user.uid,
+          ...docSnap.data()
+        })) as DailyReport[];
+      });
+
+      const results = await Promise.all(promises);
+      const allReports = results.flat();
+
+      if (allReports.length > 0) {
+        allReports.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+        return allReports;
+      }
+
+      const rootSnap = await getDocs(collection(db, 'reports'));
+      const rootData = rootSnap.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      })) as DailyReport[];
+      rootData.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+      return rootData;
     }
 
-    // Local Storage Fallback
     return getLocalReports();
   },
 
   // Add new report into user's subcollection: user-reports/{userId}/reports
   async createReport(report: DailyReport, userId?: string): Promise<DailyReport> {
+    requireFirebaseInProduction();
     const timestamp = Date.now();
     const targetUserId = userId || report.userId || '';
 
@@ -153,13 +130,18 @@ export const reportsService = {
       updatedAt: timestamp
     };
 
+    if (isFirebaseConfigured && (!db || !targetUserId)) {
+      throw new Error('Sesi Firebase atau ID pengguna tidak tersedia.');
+    }
+
     if (isFirebaseConfigured && db && targetUserId) {
       try {
         const userSubcollectionRef = collection(db, USER_REPORTS_COLLECTION, targetUserId, 'reports');
         const docRef = await addDoc(userSubcollectionRef, newReportData);
         return { ...newReportData, id: docRef.id };
       } catch (err) {
-        console.error("Firestore subcollection add error, writing local:", err);
+        console.error("Firestore subcollection add error:", err);
+        throw err;
       }
     }
 
@@ -176,8 +158,13 @@ export const reportsService = {
 
   // Update existing report in user-reports/{userId}/reports/{id}
   async updateReport(id: string, report: Partial<DailyReport>, userId?: string): Promise<void> {
+    requireFirebaseInProduction();
     const updatedAt = Date.now();
     const targetUserId = userId || report.userId || '';
+
+    if (isFirebaseConfigured && (!db || !targetUserId)) {
+      throw new Error('Sesi Firebase atau ID pengguna tidak tersedia.');
+    }
 
     if (isFirebaseConfigured && db && targetUserId) {
       try {
@@ -186,6 +173,7 @@ export const reportsService = {
         return;
       } catch (err) {
         console.error("Firestore update error:", err);
+        throw err;
       }
     }
 
@@ -197,6 +185,11 @@ export const reportsService = {
 
   // Delete report from user-reports/{userId}/reports/{id}
   async deleteReport(id: string, userId?: string): Promise<void> {
+    requireFirebaseInProduction();
+    if (isFirebaseConfigured && (!db || !userId)) {
+      throw new Error('Sesi Firebase atau ID pengguna tidak tersedia.');
+    }
+
     if (isFirebaseConfigured && db && userId) {
       try {
         const docRef = doc(db, USER_REPORTS_COLLECTION, userId, 'reports', id);
@@ -204,6 +197,7 @@ export const reportsService = {
         return;
       } catch (err) {
         console.error("Firestore delete error:", err);
+        throw err;
       }
     }
 

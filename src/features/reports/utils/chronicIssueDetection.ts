@@ -1,4 +1,4 @@
-import { DailyReport, MetodePenanganan } from '@/types/report';
+import { DailyReport, MetodePenanganan } from '@/features/reports/types/report';
 
 export type ChronicIssueType = 
   | 'fsck_os' 

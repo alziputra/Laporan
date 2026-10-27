@@ -20,9 +20,9 @@ import {
   Bug,
   Move
 } from 'lucide-react';
-import { DailyReport } from '@/types/report';
-import { UserProfile } from '@/types/user';
-import { exportToExcel } from '@/utils/exportUtils';
+import { DailyReport } from '@/features/reports/types/report';
+import { UserProfile } from '@/features/auth/types/user';
+import { exportToExcel } from '@/features/reports/utils/exportUtils';
 
 interface ExportModalProps {
   isOpen: boolean;

@@ -19,9 +19,9 @@ import {
   HelpCircle, 
   ShieldCheck 
 } from 'lucide-react';
-import { DailyReport } from '@/types/report';
-import { calculateSLA, getDayName, formatDateFormatted } from '@/utils/exportUtils';
-import { ConfirmModal } from '@/components/ConfirmModal';
+import { DailyReport } from '@/features/reports/types/report';
+import { calculateSLA, getDayName, formatDateFormatted } from '@/features/reports/utils/exportUtils';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
 
 interface ReportDetailModalProps {
   isOpen: boolean;

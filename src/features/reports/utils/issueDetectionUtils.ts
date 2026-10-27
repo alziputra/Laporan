@@ -1,4 +1,4 @@
-import { DailyReport, ReportCategory, MetodePenanganan } from '@/types/report';
+import { DailyReport, ReportCategory, MetodePenanganan } from '@/features/reports/types/report';
 
 export interface DetectedIssue {
   id: string;

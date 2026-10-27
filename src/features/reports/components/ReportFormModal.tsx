@@ -26,14 +26,14 @@ import {
   TrendingUp,
   Lightbulb
 } from 'lucide-react';
-import { DailyReport, ReportCategory, MetodePenanganan } from '@/types/report';
-import { useAuth } from '@/context/AuthContext';
+import { DailyReport, ReportCategory, MetodePenanganan } from '@/features/reports/types/report';
+import { useAuth } from '@/features/auth/context/AuthContext';
 import { 
   detectRecurringIssues, 
   findSimilarHistoricalIssues, 
   normalizeCategory,
   DetectedIssue 
-} from '@/utils/issueDetectionUtils';
+} from '@/features/reports/utils/issueDetectionUtils';
 
 interface ReportFormModalProps {
   isOpen: boolean;

@@ -1,5 +1,5 @@
 import { auth, db, isFirebaseConfigured } from '@/lib/firebase';
-import { UserProfile, RegisterPayload, LoginPayload, DirectResetPayload, AdminUserSavePayload } from '@/types/user';
+import { UserProfile, RegisterPayload, LoginPayload, AdminUserSavePayload } from '@/features/auth/types/user';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -7,11 +7,40 @@ import {
   updateProfile,
   sendPasswordResetEmail
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { isAdminRole } from '@/features/auth/utils/authorization';
 
 const USER_REPORTS_COLLECTION = 'user-reports';
 const LOCAL_USERS_KEY = 'pegadaian_user_reports_v1';
 const LOCAL_CURRENT_USER_KEY = 'pegadaian_current_user_v1';
+
+const requireFirebaseInProduction = (): void => {
+  if (process.env.NODE_ENV === 'production' && !isFirebaseConfigured) {
+    throw new Error('Firebase wajib dikonfigurasi untuk autentikasi produksi.');
+  }
+};
+
+const requireAdminAccess = async (): Promise<void> => {
+  requireFirebaseInProduction();
+
+  if (!isFirebaseConfigured) {
+    if (!isAdminRole(getLocalCurrentUser()?.role)) {
+      throw new Error('Akses admin diperlukan.');
+    }
+    return;
+  }
+
+  if (!auth || !db || !auth.currentUser) {
+    throw new Error('Sesi Firebase tidak tersedia. Silakan login kembali.');
+  }
+
+  const profileSnapshot = await getDoc(
+    doc(db, USER_REPORTS_COLLECTION, auth.currentUser.uid)
+  );
+  if (!profileSnapshot.exists() || !isAdminRole(profileSnapshot.data().role)) {
+    throw new Error('Akses admin diperlukan.');
+  }
+};
 
 // Local storage helpers
 const getLocalUsers = (): UserProfile[] => {
@@ -53,12 +82,21 @@ const setLocalCurrentUser = (user: UserProfile | null) => {
 };
 
 export const authService = {
+  async assertAdminAccess(): Promise<void> {
+    await requireAdminAccess();
+  },
+
   // Register User (Nama Lengkap, Email Aktif, Kantor Wilayah, Password)
   async register({ displayName, email, kanwil, password, nik, role }: RegisterPayload): Promise<UserProfile> {
+    requireFirebaseInProduction();
     const timestamp = Date.now();
     const cleanEmail = email.trim().toLowerCase();
     const unitKerja = `${kanwil} - ${displayName}`;
     const userRole = role || 'Desktop Support';
+
+    if (isFirebaseConfigured && (!auth || !db)) {
+      throw new Error('Firebase belum siap. Pendaftaran tidak dapat dilanjutkan.');
+    }
 
     if (isFirebaseConfigured && auth && db) {
       try {
@@ -117,8 +155,13 @@ export const authService = {
 
   // Login User by Email or Nama Lengkap
   async login({ nameOrEmail, password }: LoginPayload): Promise<UserProfile> {
+    requireFirebaseInProduction();
     const trimmedInput = nameOrEmail.trim();
     let emailToUse = trimmedInput.toLowerCase();
+
+    if (isFirebaseConfigured && (!auth || !db)) {
+      throw new Error('Firebase belum siap. Login tidak dapat dilanjutkan.');
+    }
 
     if (isFirebaseConfigured && auth && db) {
       if (!emailToUse.includes('@')) {
@@ -176,7 +219,12 @@ export const authService = {
 
   // Reset Password via Firebase Email
   async resetPasswordEmail(email: string): Promise<void> {
+    requireFirebaseInProduction();
     const cleanEmail = email.trim().toLowerCase();
+
+    if (isFirebaseConfigured && !auth) {
+      throw new Error('Firebase Authentication tidak tersedia.');
+    }
 
     if (isFirebaseConfigured && auth) {
       try {
@@ -190,40 +238,28 @@ export const authService = {
       }
     }
 
-    // Local Storage Fallback Check
-    const users = getLocalUsers();
-    const foundUser = users.find((u) => u.email.toLowerCase() === cleanEmail);
-    if (!foundUser) {
-      throw new Error(`Email "${cleanEmail}" tidak ditemukan.`);
-    }
+    throw new Error(
+      'Pengiriman email reset password hanya tersedia dengan Firebase Authentication.'
+    );
   },
 
-  // Direct Reset Password (backup option)
-  async resetPasswordDirectly({ email, newPassword }: DirectResetPayload): Promise<void> {
+  async adminResetPasswordEmail(email: string): Promise<void> {
+    await requireAdminAccess();
     const cleanEmail = email.trim().toLowerCase();
 
-    if (isFirebaseConfigured && auth && db) {
-      const q = query(
-        collection(db, USER_REPORTS_COLLECTION),
-        where('email', '==', cleanEmail)
-      );
-      const snap = await getDocs(q);
-      if (snap.empty) {
-        throw new Error(`Email "${cleanEmail}" tidak ditemukan.`);
-      }
-      return;
+    if (!isFirebaseConfigured || !auth) {
+      throw new Error('Reset password admin memerlukan Firebase Authentication.');
     }
 
-    // Local Storage Fallback
-    const users = getLocalUsers();
-    const userIndex = users.findIndex((u) => u.email.toLowerCase() === cleanEmail);
-    if (userIndex === -1) {
-      throw new Error(`Email "${cleanEmail}" tidak ditemukan.`);
-    }
+    await sendPasswordResetEmail(auth, cleanEmail);
   },
 
   // Fetch User Profile by UID
   async getUserProfile(uid: string): Promise<UserProfile | null> {
+    if (isFirebaseConfigured && !db) {
+      throw new Error('Firestore tidak tersedia untuk memuat profil.');
+    }
+
     if (isFirebaseConfigured && db) {
       try {
         const docRef = doc(db, USER_REPORTS_COLLECTION, uid);
@@ -231,8 +267,10 @@ export const authService = {
         if (docSnap.exists()) {
           return docSnap.data() as UserProfile;
         }
+        return null;
       } catch (err) {
         console.error('Error fetching user profile from Firestore "user-reports":', err);
+        throw err;
       }
     }
 
@@ -246,30 +284,19 @@ export const authService = {
 
   // ADMIN: Get all registered users
   async getAllUsers(): Promise<UserProfile[]> {
-    if (isFirebaseConfigured && db) {
-      try {
-        const usersCollectionRef = collection(db, USER_REPORTS_COLLECTION);
-        const snapshot = await getDocs(usersCollectionRef);
-        const users: UserProfile[] = [];
-        snapshot.forEach((docSnap) => {
-          const data = docSnap.data() as UserProfile;
-          users.push({
-            ...data,
-            uid: docSnap.id
-          });
-        });
+    await requireAdminAccess();
 
-        if (users.length > 0) {
-          // Sort by createdAt descending
-          users.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
-          return users;
-        }
-      } catch (err) {
-        console.error('Error fetching all users from Firestore:', err);
-      }
+    if (isFirebaseConfigured && db) {
+      const usersCollectionRef = collection(db, USER_REPORTS_COLLECTION);
+      const snapshot = await getDocs(usersCollectionRef);
+      const users = snapshot.docs.map((docSnap) => ({
+        ...docSnap.data(),
+        uid: docSnap.id
+      })) as UserProfile[];
+      users.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+      return users;
     }
 
-    // Fallback to local storage
     const localUsers = getLocalUsers();
     localUsers.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
     return localUsers;
@@ -277,12 +304,39 @@ export const authService = {
 
   // ADMIN: Create or Update User
   async adminSaveUser(payload: AdminUserSavePayload): Promise<UserProfile> {
+    await requireAdminAccess();
+
+    if (isFirebaseConfigured && !payload.uid) {
+      throw new Error(
+        'Pembuatan akun Firebase harus dilakukan melalui backend tepercaya.'
+      );
+    }
+    if (isFirebaseConfigured && payload.password) {
+      throw new Error(
+        'Perubahan kata sandi harus dilakukan melalui Firebase Admin SDK.'
+      );
+    }
+
     const timestamp = Date.now();
     const cleanEmail = payload.email.trim().toLowerCase();
     const unitKerja = payload.unitKerja || `${payload.kanwil} - ${payload.displayName}`;
 
     // If Editing existing user
     if (payload.uid) {
+      if (isFirebaseConfigured && db) {
+        const existingProfile = await getDoc(
+          doc(db, USER_REPORTS_COLLECTION, payload.uid)
+        );
+        if (!existingProfile.exists()) {
+          throw new Error('Profil pengguna tidak ditemukan.');
+        }
+        if (String(existingProfile.data().email || '').trim().toLowerCase() !== cleanEmail) {
+          throw new Error(
+            'Perubahan email akun Firebase harus dilakukan melalui backend tepercaya.'
+          );
+        }
+      }
+
       const updatedProfile: Partial<UserProfile> = {
         displayName: payload.displayName,
         email: cleanEmail,
@@ -294,12 +348,8 @@ export const authService = {
       };
 
       if (isFirebaseConfigured && db) {
-        try {
-          const docRef = doc(db, USER_REPORTS_COLLECTION, payload.uid);
-          await updateDoc(docRef, updatedProfile);
-        } catch (err) {
-          console.error('Error updating user in Firestore:', err);
-        }
+        const docRef = doc(db, USER_REPORTS_COLLECTION, payload.uid);
+        await updateDoc(docRef, updatedProfile);
       }
 
       // Update LocalStorage
@@ -332,12 +382,8 @@ export const authService = {
     };
 
     if (isFirebaseConfigured && db) {
-      try {
-        const docRef = doc(db, USER_REPORTS_COLLECTION, newUid);
-        await setDoc(docRef, newUser);
-      } catch (err) {
-        console.error('Error adding user to Firestore:', err);
-      }
+      const docRef = doc(db, USER_REPORTS_COLLECTION, newUid);
+      await setDoc(docRef, newUser);
     }
 
     const localUsers = getLocalUsers();
@@ -347,14 +393,12 @@ export const authService = {
 
   // ADMIN: Change role quickly (e.g. Admin / Desktop Support)
   async adminUpdateRole(uid: string, newRole: string): Promise<void> {
+    await requireAdminAccess();
+
     const timestamp = Date.now();
     if (isFirebaseConfigured && db) {
-      try {
-        const docRef = doc(db, USER_REPORTS_COLLECTION, uid);
-        await updateDoc(docRef, { role: newRole, updatedAt: timestamp });
-      } catch (err) {
-        console.error('Error updating role in Firestore:', err);
-      }
+      const docRef = doc(db, USER_REPORTS_COLLECTION, uid);
+      await updateDoc(docRef, { role: newRole, updatedAt: timestamp });
     }
 
     const localUsers = getLocalUsers();
@@ -371,13 +415,12 @@ export const authService = {
 
   // ADMIN: Delete User
   async adminDeleteUser(uid: string): Promise<void> {
-    if (isFirebaseConfigured && db) {
-      try {
-        const docRef = doc(db, USER_REPORTS_COLLECTION, uid);
-        await deleteDoc(docRef);
-      } catch (err) {
-        console.error('Error deleting user from Firestore:', err);
-      }
+    await requireAdminAccess();
+
+    if (isFirebaseConfigured) {
+      throw new Error(
+        'Penghapusan akun Firebase harus dilakukan melalui backend tepercaya.'
+      );
     }
 
     const localUsers = getLocalUsers();

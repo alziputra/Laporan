@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Shield, Building, KeyRound, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
-import { UserProfile, KANWIL_LIST, USER_ROLES, AdminUserSavePayload } from '@/types/user';
+import { UserProfile, KANWIL_LIST, USER_ROLES, AdminUserSavePayload } from '@/features/auth/types/user';
 
 interface AdminUserModalProps {
   isOpen: boolean;
