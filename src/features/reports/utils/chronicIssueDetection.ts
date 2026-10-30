@@ -109,6 +109,16 @@ function isAppCacheIssue(text: string): boolean {
   );
 }
 
+function isRoutineTaskReport(report: DailyReport): boolean {
+  const description = (report.deskripsiPermohonan || '').toLowerCase();
+  return (
+    /\b(persiapan|menyiapkan|siapkan|standby)\b/.test(description) ||
+    /\b(acara|upacara|senam|sound system)\b/.test(description) ||
+    /\b(ubah|rubah|ganti)\b.{0,30}\b(nama|hostname)\b/.test(description) ||
+    /\b(nama|hostname)\b.{0,30}\b(ubah|rubah|ganti)\b/.test(description)
+  );
+}
+
 /**
  * Menganalisis seluruh riwayat laporan dan mendeteksi unit kerja yang memerlukan tindakan korektif / preventif
  */
@@ -151,17 +161,19 @@ export function analyzeChronicIssues(reports: DailyReport[]): ChronicUnitsSummar
       return isFsckOrOsIssue(fullText);
     });
 
-    if (fsckReports.length >= 2) {
+    if (fsckReports.length >= 1) {
       recommendations.push({
         id: `action-${unitName}-fsck`,
         unitKerja: unitName,
         issueType: 'fsck_os',
-        issueTitle: 'Kendala File System (FSCK) / OS Rusak Berulang',
+        issueTitle: 'Kendala File System (FSCK) / OS Terdeteksi',
         frequency: fsckReports.length,
         severity: fsckReports.length >= 3 ? 'critical' : 'high',
         recommendedAction: 'Jadwalkan Segera Install Ulang OS Linux Bersih & Pengecekan Storage SSD/HDD',
         suggestedMethod: 'Visit',
-        reason: `Unit kerja ini sudah ${fsckReports.length}x mengalami masalah filesystem (fsck). Perbaikan sementara via terminal berulang kali membuktikan adanya kerusakan file sistem permanen atau bad sector disk.`,
+        reason: fsckReports.length >= 2
+          ? `Unit kerja ini sudah ${fsckReports.length}x mengalami masalah filesystem (fsck). Kejadian berulang perlu ditindaklanjuti dengan pemeriksaan kondisi storage dan OS secara menyeluruh.`
+          : 'Terdapat laporan masalah filesystem (FSCK/OS) di unit ini. Periksa kondisi storage dan OS untuk mencegah kerusakan atau gangguan berulang.',
         relatedReports: fsckReports,
         latestReportDate: fsckReports[0]?.tanggalPengerjaan || latestDate
       });
@@ -234,21 +246,22 @@ export function analyzeChronicIssues(reports: DailyReport[]): ChronicUnitsSummar
     }
 
     // E. Analisis Hotspot Unit (Volume Tiket Tinggi Total >= 5)
-    // Hanya tambahkan jika unit belum memiliki alert kritis lain
+    // Abaikan tugas rutin agar tidak dianggap sebagai kendala berulang.
+    const hotspotReports = sortedUnitReports.filter((report) => !isRoutineTaskReport(report));
     const alreadyHasAlert = recommendations.some((rec) => rec.unitKerja === unitName);
-    if (!alreadyHasAlert && unitReports.length >= 5) {
+    if (!alreadyHasAlert && hotspotReports.length >= 5) {
       recommendations.push({
         id: `action-${unitName}-volume`,
         unitKerja: unitName,
         issueType: 'high_frequency',
         issueTitle: 'Unit Hotspot (Volume Keluhan Sangat Tinggi)',
-        frequency: unitReports.length,
+        frequency: hotspotReports.length,
         severity: 'medium',
         recommendedAction: 'Jadwalkan Kunjungan Preventive Maintenance Menyeluruh di Unit Ini',
         suggestedMethod: 'Visit',
-        reason: `Unit ini tercatat telah ${unitReports.length}x menghubungi MS Kanwil. Tingginya frekuensi keluhan menandakan perlunya pemeliharaan menyeluruh pada PC dan jaringan unit.`,
-        relatedReports: sortedUnitReports.slice(0, 5),
-        latestReportDate: latestDate
+        reason: `Unit ini tercatat memiliki ${hotspotReports.length} laporan kendala. Tingginya frekuensi keluhan menandakan perlunya pemeliharaan menyeluruh pada PC dan jaringan unit.`,
+        relatedReports: hotspotReports.slice(0, 5),
+        latestReportDate: hotspotReports[0]?.tanggalPengerjaan || latestDate
       });
     }
   });
