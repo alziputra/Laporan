@@ -373,7 +373,10 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
         (u.unitKerja && u.unitKerja.toLowerCase().includes(q));
 
       const matchKanwil =
-        selectedUserKanwil === "Semua" || u.kanwil === selectedUserKanwil;
+        selectedUserKanwil === "Semua" ||
+        (selectedUserKanwil === "Tanpa Kanwil"
+          ? !u.kanwil || u.kanwil === "-" || u.kanwil === "Tanpa Kanwil"
+          : u.kanwil === selectedUserKanwil);
       const matchRole =
         selectedUserRole === "Semua" ||
         u.role === selectedUserRole ||

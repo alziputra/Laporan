@@ -20,7 +20,7 @@ export const AdminUserModal: React.FC<AdminUserModalProps> = ({
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [nik, setNik] = useState('');
-  const [kanwil, setKanwil] = useState(KANWIL_LIST[0]);
+  const [kanwil, setKanwil] = useState<string>(KANWIL_LIST[0]);
   const [unitKerja, setUnitKerja] = useState('');
   const [role, setRole] = useState<string>('Desktop Support');
   const [password, setPassword] = useState('');
@@ -35,8 +35,8 @@ export const AdminUserModal: React.FC<AdminUserModalProps> = ({
       setDisplayName(initialUser.displayName || '');
       setEmail(initialUser.email || '');
       setNik(initialUser.nik || '');
-      setKanwil((initialUser.kanwil as any) || KANWIL_LIST[0]);
-      setUnitKerja(initialUser.unitKerja || '');
+      setKanwil(initialUser.kanwil ?? (initialUser.role === 'Admin' ? '' : KANWIL_LIST[0]));
+      setUnitKerja(initialUser.unitKerja ?? '');
       setRole(initialUser.role || 'Desktop Support');
       setPassword('');
     } else {
@@ -51,18 +51,28 @@ export const AdminUserModal: React.FC<AdminUserModalProps> = ({
     setErrorMessage('');
   }, [initialUser, isOpen]);
 
-  // Auto-generate unit kerja if not manually modified
+  // Auto-generate unit kerja only when creating a new Desktop Support / field user
   const handleKanwilChange = (selectedKanwil: string) => {
-    setKanwil(selectedKanwil as any);
-    if (!unitKerja || unitKerja.includes('Kanwil')) {
+    setKanwil(selectedKanwil);
+    if (!isEditing && role !== 'Admin' && !unitKerja && selectedKanwil) {
       setUnitKerja(`${selectedKanwil} - ${displayName || 'User'}`);
     }
   };
 
   const handleNameChange = (val: string) => {
     setDisplayName(val);
-    if (!unitKerja || unitKerja.includes('Kanwil')) {
+    if (!isEditing && role !== 'Admin' && !unitKerja && kanwil) {
       setUnitKerja(`${kanwil} - ${val}`);
+    }
+  };
+
+  const handleRoleSelect = (newRole: string) => {
+    setRole(newRole);
+    if (newRole === 'Admin') {
+      // If currently holding an auto-generated kanwil string, provide convenience
+      if (unitKerja && unitKerja.includes('Kanwil') && unitKerja.includes(displayName)) {
+        setUnitKerja('');
+      }
     }
   };
 
@@ -78,6 +88,11 @@ export const AdminUserModal: React.FC<AdminUserModalProps> = ({
       setErrorMessage('Email aktif dan valid wajib diisi.');
       return;
     }
+    // Only mandatory for non-admin
+    if (role !== 'Admin' && !kanwil.trim()) {
+      setErrorMessage('Kantor Wilayah wajib dipilih untuk pengguna Desktop Support / Supervisor.');
+      return;
+    }
     if (!isEditing && (!password || password.length < 6)) {
       setErrorMessage('Kata sandi minimal 6 karakter untuk akun baru.');
       return;
@@ -85,13 +100,16 @@ export const AdminUserModal: React.FC<AdminUserModalProps> = ({
 
     try {
       setLoading(true);
+      const cleanKanwil = kanwil.trim();
+      const cleanUnitKerja = unitKerja.trim() || (role === 'Admin' ? '' : (cleanKanwil ? `${cleanKanwil} - ${displayName.trim()}` : displayName.trim()));
+
       await onSave({
         uid: initialUser?.uid,
         displayName: displayName.trim(),
         email: email.trim().toLowerCase(),
         nik: nik.trim(),
-        kanwil,
-        unitKerja: unitKerja.trim() || `${kanwil} - ${displayName.trim()}`,
+        kanwil: cleanKanwil,
+        unitKerja: cleanUnitKerja,
         role,
         password: password || undefined
       });
@@ -194,9 +212,31 @@ export const AdminUserModal: React.FC<AdminUserModalProps> = ({
 
           {/* Kantor Wilayah */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              Kantor Wilayah (Kanwil) <span className="text-red-500">*</span>
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold text-slate-700">
+                Kantor Wilayah (Kanwil) {role !== 'Admin' ? <span className="text-red-500">*</span> : <span className="text-[10px] font-normal text-emerald-600 font-semibold">(Opsional untuk Admin)</span>}
+              </label>
+              <div className="flex items-center gap-2">
+                {kanwil && (
+                  <button
+                    type="button"
+                    onClick={() => setKanwil('')}
+                    className="text-[10px] text-slate-400 hover:text-red-600 font-semibold transition-colors"
+                  >
+                    Kosongkan
+                  </button>
+                )}
+                {kanwil !== 'Kantor Pusat' && (
+                  <button
+                    type="button"
+                    onClick={() => setKanwil('Kantor Pusat')}
+                    className="text-[10px] text-pegadaian-600 hover:text-pegadaian-700 font-semibold transition-colors"
+                  >
+                    Set Kantor Pusat
+                  </button>
+                )}
+              </div>
+            </div>
             <div className="relative">
               <Building className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <select
@@ -204,25 +244,56 @@ export const AdminUserModal: React.FC<AdminUserModalProps> = ({
                 onChange={(e) => handleKanwilChange(e.target.value)}
                 className="w-full pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-pegadaian-500 focus:bg-white transition-all appearance-none cursor-pointer"
               >
-                {KANWIL_LIST.map((k) => (
-                  <option key={k} value={k}>{k}</option>
-                ))}
+                <option value="">- Dikosongkan / Tanpa Kanwil -</option>
+                <option value="Kantor Pusat">Kantor Pusat</option>
+                <optgroup label="Daftar Kantor Wilayah (Kanwil)">
+                  {KANWIL_LIST.map((k) => (
+                    <option key={k} value={k}>{k}</option>
+                  ))}
+                </optgroup>
               </select>
             </div>
           </div>
 
           {/* Unit Kerja Detail */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              Unit Kerja / Jabatan Lengkap
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold text-slate-700">
+                Unit Kerja / Jabatan Lengkap {role === 'Admin' && <span className="text-[10px] font-normal text-slate-400">(Boleh dikosongkan)</span>}
+              </label>
+              <div className="flex items-center gap-2">
+                {unitKerja && (
+                  <button
+                    type="button"
+                    onClick={() => setUnitKerja('')}
+                    className="text-[10px] text-slate-400 hover:text-red-600 font-semibold transition-colors"
+                  >
+                    Kosongkan
+                  </button>
+                )}
+                {role === 'Admin' && unitKerja !== 'Kantor Pusat' && (
+                  <button
+                    type="button"
+                    onClick={() => setUnitKerja('Kantor Pusat')}
+                    className="text-[10px] text-pegadaian-600 hover:text-pegadaian-700 font-semibold transition-colors"
+                  >
+                    Set Kantor Pusat
+                  </button>
+                )}
+              </div>
+            </div>
             <input
               type="text"
               value={unitKerja}
               onChange={(e) => setUnitKerja(e.target.value)}
-              placeholder="Contoh: Kanwil VIII - Support Helpdesk"
+              placeholder={role === 'Admin' ? 'Contoh: Kantor Pusat, Divisi TI, atau biarkan kosong' : 'Contoh: Kanwil VIII - Support Helpdesk'}
               className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-pegadaian-500 focus:bg-white transition-all"
             />
+            {role === 'Admin' && (
+              <p className="text-[10px] text-slate-500 mt-1">
+                Tip: Akun Admin tidak terikat kanwil tertentu. Anda dapat mengosongkan kedua kolom di atas atau mengisi &quot;Kantor Pusat&quot;.
+              </p>
+            )}
           </div>
 
           {/* Role Selection */}
@@ -237,7 +308,7 @@ export const AdminUserModal: React.FC<AdminUserModalProps> = ({
                   <button
                     key={r}
                     type="button"
-                    onClick={() => setRole(r)}
+                    onClick={() => handleRoleSelect(r)}
                     className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-1 text-center ${
                       isSelected
                         ? 'bg-pegadaian-50 border-pegadaian-600 text-pegadaian-800 shadow-sm ring-1 ring-pegadaian-600'

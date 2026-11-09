@@ -74,7 +74,7 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
   };
 
   const defaultPic = userProfile
-    ? (userProfile.unitKerja || `${userProfile.kanwil} - ${userProfile.displayName}`)
+    ? (userProfile.unitKerja || (userProfile.kanwil ? `${userProfile.kanwil} - ${userProfile.displayName}` : userProfile.displayName))
     : 'Kanwil VIII - Alzi Rahmana Putra';
 
   const [formData, setFormData] = useState<DailyReport>({

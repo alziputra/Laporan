@@ -319,7 +319,15 @@ export const authService = {
 
     const timestamp = Date.now();
     const cleanEmail = payload.email.trim().toLowerCase();
-    const unitKerja = payload.unitKerja || `${payload.kanwil} - ${payload.displayName}`;
+    const unitKerja =
+      payload.unitKerja !== undefined
+        ? payload.unitKerja.trim()
+        : payload.role === 'Admin'
+        ? ''
+        : payload.kanwil
+        ? `${payload.kanwil} - ${payload.displayName}`
+        : payload.displayName;
+    const kanwil = payload.kanwil !== undefined ? payload.kanwil.trim() : '';
 
     // If Editing existing user
     if (payload.uid) {
@@ -340,7 +348,7 @@ export const authService = {
       const updatedProfile: Partial<UserProfile> = {
         displayName: payload.displayName,
         email: cleanEmail,
-        kanwil: payload.kanwil,
+        kanwil,
         unitKerja,
         nik: payload.nik || '',
         role: payload.role,
@@ -373,7 +381,7 @@ export const authService = {
       uid: newUid,
       displayName: payload.displayName,
       email: cleanEmail,
-      kanwil: payload.kanwil,
+      kanwil,
       unitKerja,
       nik: payload.nik || '',
       role: payload.role || 'Desktop Support',

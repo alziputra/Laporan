@@ -160,11 +160,15 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                     className="w-full sm:w-auto bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-pegadaian-500 cursor-pointer"
                   >
                     <option value="Semua">Semua Kanwil</option>
-                    {KANWIL_LIST.map((k) => (
-                      <option key={k} value={k}>
-                        {k}
-                      </option>
-                    ))}
+                    <option value="Kantor Pusat">Kantor Pusat</option>
+                    <option value="Tanpa Kanwil">Tanpa Kanwil / Dikosongkan</option>
+                    <optgroup label="Kantor Wilayah">
+                      {KANWIL_LIST.map((k) => (
+                        <option key={k} value={k}>
+                          {k}
+                        </option>
+                      ))}
+                    </optgroup>
                   </select>
                 </div>
 
@@ -289,7 +293,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                           {/* Kanwil & Unit */}
                           <td className="py-3.5 px-4">
                             <span className="inline-block font-semibold text-slate-800 text-[11px]">
-                              {user.kanwil || "Kanwil I - Medan"}
+                              {user.kanwil || "-"}
                             </span>
                             <p className="text-[10px] text-slate-400 truncate max-w-[200px]">
                               {user.unitKerja || "-"}
