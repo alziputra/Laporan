@@ -1,4 +1,6 @@
 import { DailyReport } from '@/features/reports/types/report';
+import { UserProfile } from '@/features/auth/types/user';
+import { getReportKanwil } from '@/features/reports/utils/kanwilUtils';
 import XLSX from 'xlsx-js-style';
 
 // SLA Calculator: HH:MM:SS format
@@ -85,14 +87,37 @@ export const getCategoryTab = (category: string): string => {
   return 'Lainnya';
 };
 
-export const exportToExcel = (reports: DailyReport[], startDate: string, endDate: string) => {
+export type ExportSortOption = 'name_and_time' | 'time_only';
+
+export const extractPicName = (pic: string): string => {
+  if (!pic) return '';
+  const parts = pic.split(' - ');
+  return (parts.length > 1 ? parts[parts.length - 1] : pic).trim();
+};
+
+export const exportToExcel = (
+  reports: DailyReport[],
+  startDate: string,
+  endDate: string,
+  kanwilName?: string,
+  sortBy: ExportSortOption = 'name_and_time'
+) => {
   if (!reports || reports.length === 0) {
     alert("Tidak ada data laporan pada rentang tanggal yang dipilih!");
     return;
   }
 
-  // Sort reports ascending by tanggalPengerjaan (oldest to newest date) then by waktuMulai
+  // Sort reports by PIC name first (alphabetical) then chronologically by date and time
   const sortedReports = [...reports].sort((a, b) => {
+    if (sortBy === 'name_and_time') {
+      const nameA = extractPicName(a.picSupport || '');
+      const nameB = extractPicName(b.picSupport || '');
+      const cmpName = nameA.localeCompare(nameB, 'id', { sensitivity: 'base' });
+      if (cmpName !== 0) {
+        return cmpName;
+      }
+    }
+
     const dateA = a.tanggalPengerjaan || '';
     const dateB = b.tanggalPengerjaan || '';
     if (dateA !== dateB) {
@@ -117,13 +142,15 @@ export const exportToExcel = (reports: DailyReport[], startDate: string, endDate
     { tabName: 'Lainnya', titleName: 'Lainnya' },
   ];
 
+  const kanwilHeader = kanwilName && kanwilName !== 'Semua' ? kanwilName : 'Kantor Wilayah';
+
   // Helper to build worksheet array matching exact Pegadaian report format (12 columns A to L)
   const buildSheetData = (catReports: DailyReport[], categoryName: string) => {
     const titleRow1 = [
       `Daftar supporting ${categoryName} di kantor wilayah pada Departemen IT Operation di PT. Pegadaian`
     ];
     const titleRow2 = [
-      `Manage Service Support Kantor Wilayah Periode ( ${periodLabel} )`
+      `Manage Service Support ${kanwilHeader} Periode ( ${periodLabel} )`
     ];
     const headerColumns = [
       'No.',
@@ -281,7 +308,55 @@ export const exportToExcel = (reports: DailyReport[], startDate: string, endDate
 
   const formattedStart = startDate ? startDate.replace(/-/g, '') : 'Awal';
   const formattedEnd = endDate ? endDate.replace(/-/g, '') : 'Akhir';
-  const fileName = `Laporan_Manage_Service_Support_Kanwil_${formattedStart}_sd_${formattedEnd}.xlsx`;
+  
+  let cleanKanwil = '';
+  if (kanwilName && kanwilName !== 'Semua') {
+    cleanKanwil = kanwilName
+      .replace(/[^a-zA-Z0-9]/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '') + '_';
+  } else {
+    cleanKanwil = 'Semua_Kanwil_';
+  }
+
+  const fileName = `Laporan_Manage_Service_Support_${cleanKanwil}${formattedStart}_sd_${formattedEnd}.xlsx`;
 
   XLSX.writeFile(workbook, fileName);
+};
+
+/**
+ * Batch export: downloads individual Excel files per Kanwil for all Kanwils having reports
+ */
+export const exportAllKanwilsSeparately = async (
+  reports: DailyReport[],
+  startDate: string,
+  endDate: string,
+  users?: UserProfile[],
+  onProgress?: (current: number, total: number, kanwilName: string) => void,
+  sortBy: ExportSortOption = 'name_and_time'
+): Promise<{ exportedCount: number }> => {
+  const kanwilMap = new Map<string, DailyReport[]>();
+
+  reports.forEach((report) => {
+    const k = getReportKanwil(report, users) || 'Kantor Pusat / Lainnya';
+    const list = kanwilMap.get(k) || [];
+    list.push(report);
+    kanwilMap.set(k, list);
+  });
+
+  const kanwilEntries = Array.from(kanwilMap.entries()).filter(([_, reps]) => reps.length > 0);
+  kanwilEntries.sort(([a], [b]) => a.localeCompare(b));
+
+  for (let i = 0; i < kanwilEntries.length; i++) {
+    const [kName, kReports] = kanwilEntries[i];
+    if (onProgress) {
+      onProgress(i + 1, kanwilEntries.length, kName);
+    }
+    exportToExcel(kReports, startDate, endDate, kName, sortBy);
+    if (i < kanwilEntries.length - 1) {
+      await new Promise((resolve) => setTimeout(resolve, 450));
+    }
+  }
+
+  return { exportedCount: kanwilEntries.length };
 };

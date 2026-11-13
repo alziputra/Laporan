@@ -200,6 +200,8 @@ export default function DashboardPage() {
         isOpen={isExportOpen}
         onClose={() => setIsExportOpen(false)}
         reports={reports}
+        initialKanwil={userProfile?.kanwil || undefined}
+        showKanwilFilter={true}
       />
 
       {viewingReport && (

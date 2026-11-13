@@ -32,6 +32,10 @@ import { CATEGORY_ITEMS } from "@/features/admin/components/adminConstants";
 import { ConfirmModal } from "@/components/shared/ConfirmModal";
 import { ReportDetailModal } from "@/features/reports/components/ReportDetailModal";
 import { ExportModal } from "@/features/reports/components/ExportModal";
+import {
+  getReportKanwil as getKanwilFromHelper,
+  isReportMatchingKanwil as isMatchingKanwilHelper,
+} from "@/features/reports/utils/kanwilUtils";
 
 interface AdminUserManagementProps {
   onBackToDashboard: () => void;
@@ -206,89 +210,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
 
   // Helper to determine the exact single Kanwil of a report without ambiguity
   const getReportKanwil = (report: DailyReport): string | null => {
-    // 1. Direct userId match against registered users
-    if (report.userId && userMap.has(report.userId)) {
-      const owner = userMap.get(report.userId);
-      if (owner?.kanwil && KANWIL_LIST.includes(owner.kanwil as any)) {
-        return owner.kanwil;
-      }
-    }
-
-    // 2. Exact user match by name or email
-    const matchedUser = users.find((u) => isReportMatchingUser(report, u));
-    if (
-      matchedUser?.kanwil &&
-      KANWIL_LIST.includes(matchedUser.kanwil as any)
-    ) {
-      return matchedUser.kanwil;
-    }
-
-    // 3. Text pattern match in unitKerja and picSupport
-    const text =
-      `${report.unitKerja || ""} ${report.picSupport || ""}`.toLowerCase();
-
-    // Check exact full Kanwil name first (e.g. 'Kanwil VIII - Jakarta 1')
-    for (const k of KANWIL_LIST) {
-      if (text.includes(k.toLowerCase())) return k;
-    }
-
-    // Check specific Jakarta 1 vs Jakarta 2
-    if (
-      text.includes("jakarta 2") ||
-      text.includes("jakarta ii") ||
-      text.includes("kanwil ix") ||
-      text.includes("kanwil 9")
-    ) {
-      return "Kanwil IX - Jakarta 2";
-    }
-    if (
-      text.includes("jakarta 1") ||
-      text.includes("jakarta i") ||
-      text.includes("kanwil viii") ||
-      text.includes("kanwil 8")
-    ) {
-      return "Kanwil VIII - Jakarta 1";
-    }
-
-    // Check specific unique cities
-    const cityToKanwil: Record<string, string> = {
-      surabaya: "Kanwil XII - Surabaya",
-      semarang: "Kanwil XI - Semarang",
-      bandung: "Kanwil X - Bandung",
-      denpasar: "Kanwil VII - Denpasar",
-      makassar: "Kanwil VI - Makassar",
-      manado: "Kanwil V - Manado",
-      balikpapan: "Kanwil IV - Balikpapan",
-      palembang: "Kanwil III - Palembang",
-      pekanbaru: "Kanwil II - Pekanbaru",
-      medan: "Kanwil I - Medan",
-    };
-
-    for (const [city, kVal] of Object.entries(cityToKanwil)) {
-      if (text.includes(city)) return kVal;
-    }
-
-    // Exact Roman numerals in descending order with regex word boundary
-    const romanPatterns: Array<[RegExp, string]> = [
-      [/\bkanwil\s+(xii|12)\b/i, "Kanwil XII - Surabaya"],
-      [/\bkanwil\s+(xi|11)\b/i, "Kanwil XI - Semarang"],
-      [/\bkanwil\s+(x|10)\b/i, "Kanwil X - Bandung"],
-      [/\bkanwil\s+(ix|9)\b/i, "Kanwil IX - Jakarta 2"],
-      [/\bkanwil\s+(viii|8)\b/i, "Kanwil VIII - Jakarta 1"],
-      [/\bkanwil\s+(vii|7)\b/i, "Kanwil VII - Denpasar"],
-      [/\bkanwil\s+(vi|6)\b/i, "Kanwil VI - Makassar"],
-      [/\bkanwil\s+(v|5)\b/i, "Kanwil V - Manado"],
-      [/\bkanwil\s+(iv|4)\b/i, "Kanwil IV - Balikpapan"],
-      [/\bkanwil\s+(iii|3)\b/i, "Kanwil III - Palembang"],
-      [/\bkanwil\s+(ii|2)\b/i, "Kanwil II - Pekanbaru"],
-      [/\bkanwil\s+(i|1)\b/i, "Kanwil I - Medan"],
-    ];
-
-    for (const [pattern, kVal] of romanPatterns) {
-      if (pattern.test(text)) return kVal;
-    }
-
-    return null;
+    return getKanwilFromHelper(report, userMap);
   };
 
   // Robust matching helper to check if a report belongs to a Kanwil
@@ -296,9 +218,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
     report: DailyReport,
     kanwil: string,
   ): boolean => {
-    if (kanwil === "Semua") return true;
-    const reportKanwil = getReportKanwil(report);
-    return reportKanwil === kanwil;
+    return isMatchingKanwilHelper(report, kanwil, userMap);
   };
 
   // Switch tab and drill down to a specific user's reports
@@ -1637,6 +1557,14 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
           reports={allReports}
           users={users}
           showUserFilter={true}
+          showKanwilFilter={true}
+          initialKanwil={
+            selectedReportKanwil !== "Semua"
+              ? selectedReportKanwil
+              : analyticsSelectedKanwil !== "Semua"
+              ? analyticsSelectedKanwil
+              : undefined
+          }
           initialUser={
             selectedReportUser !== "Semua" ? selectedReportUser : undefined
           }
